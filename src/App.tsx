@@ -517,7 +517,7 @@ const App: React.FC = () => {
                 </div>
                 <div className="tweet-actions">
                   {mentions.status === 'idle' || mentions.status === 'error' ? (
-                    <div className="action" onClick={runMentions}><Play size={18} /><span>Run query</span></div>
+                    <div className="action" onClick={() => runMentions(activeUser)}><Play size={18} /><span>Run query</span></div>
                   ) : (
                     <div className="action" style={{ color: 'var(--accent)' }}><CheckCircle2 size={18} /><span>Completed</span></div>
                   )}
