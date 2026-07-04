@@ -1,8 +1,8 @@
 import React, { useState, useRef } from 'react';
 import { Search, Loader2, Play, Bookmark, Download, Settings, Clock, BadgeCheck, CheckCircle2 } from 'lucide-react';
 import { toPng } from 'html-to-image';
-import { getCachedFollowingsFromFirebase, saveFollowingsToFirebaseCache, getCachedTweetFromFirebase, saveTweetToFirebaseCache, getCachedMentionsFromFirebase, saveMentionsToFirebaseCache } from './firebase';
-import type { MentionUser } from './firebase';
+import { getCachedFollowingsFromFirebase, saveFollowingsToFirebaseCache, findSimilarUsersInFirebase, getCachedTweetFromFirebase, saveTweetToFirebaseCache, getCachedMentionsFromFirebase, saveMentionsToFirebaseCache } from './firebase';
+import type { SimilarUser, MentionUser } from './firebase';
 
 interface TwitterUser {
   userId: string;
@@ -39,9 +39,10 @@ const App: React.FC = () => {
   const [firstTweet, setFirstTweet] = useState<QueryState<Tweet>>({ status: 'idle', data: null });
   const [popularTweet, setPopularTweet] = useState<QueryState<Tweet>>({ status: 'idle', data: null });
   const [mentions, setMentions] = useState<QueryState<MentionUser[]>>({ status: 'idle', data: null });
+  const [sharedFollows, setSharedFollows] = useState<QueryState<SimilarUser[]>>({ status: 'idle', data: null });
 
   // Toggles for card
-  const [toggles, setToggles] = useState({ followings: true, firstTweet: false, popularTweet: false, mentions: false });
+  const [toggles, setToggles] = useState({ followings: true, firstTweet: false, popularTweet: false, mentions: false, sharedFollows: false });
 
   const posterRef = useRef<HTMLDivElement>(null);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -63,6 +64,7 @@ const App: React.FC = () => {
     setFirstTweet({ status: 'idle', data: null });
     setPopularTweet({ status: 'idle', data: null });
     setMentions({ status: 'idle', data: null });
+    setSharedFollows({ status: 'idle', data: null });
     setActiveUserAvatar('');
 
     // Auto-run selected toggle(s)
@@ -70,6 +72,7 @@ const App: React.FC = () => {
     if (toggles.firstTweet) runTweet(false, clean);
     if (toggles.popularTweet) runTweet(true, clean);
     if (toggles.mentions) runMentions(clean);
+    if (toggles.sharedFollows) runSharedFollows(clean);
 
     // Fetch avatar just for UI
     try {
@@ -279,11 +282,32 @@ const App: React.FC = () => {
     }
   };
 
+  // 4. Fetch Shared Follows
+  const runSharedFollows = async (usernameToFetch = activeUser) => {
+    if (!usernameToFetch) return;
+    setSharedFollows({ status: 'loading', data: null });
+    try {
+      const cleanUsername = usernameToFetch;
+      const fbCache = await getCachedFollowingsFromFirebase(cleanUsername);
+      if (!fbCache || !fbCache.allFollowingsUsernames) {
+        throw new Error('Followings data not found. Run Oldest Follow first.');
+      }
+      const similar = await findSimilarUsersInFirebase(cleanUsername, new Set(fbCache.allFollowingsUsernames));
+      if (!similar || similar.length === 0) {
+        throw new Error('No shared follows found in database.');
+      }
+      setSharedFollows({ status: 'done', data: similar.slice(0, 5) });
+    } catch(e: any) {
+      setSharedFollows({ status: 'error', data: null, error: e.message });
+    }
+  };
+
   const runAll = () => {
-    if(followings.status !== 'done') runFollowings();
-    if(firstTweet.status !== 'done') runTweet(false);
-    if(popularTweet.status !== 'done') runTweet(true);
-    if(mentions.status !== 'done') runMentions();
+    if(followings.status !== 'done') runFollowings(activeUser);
+    if(firstTweet.status !== 'done') runTweet(false, activeUser);
+    if(popularTweet.status !== 'done') runTweet(true, activeUser);
+    if(mentions.status !== 'done') runMentions(activeUser);
+    if(sharedFollows.status !== 'done') runSharedFollows(activeUser);
   };
 
   const downloadCard = async () => {
@@ -312,6 +336,7 @@ const App: React.FC = () => {
         firstTweet: firstTweet.status,
         popularTweet: popularTweet.status,
         mentions: mentions.status,
+        sharedFollows: sharedFollows.status,
       };
 
       // Turn off other idle/loading/error switches
@@ -325,7 +350,7 @@ const App: React.FC = () => {
     });
   };
 
-  const numFound = [followings.status, firstTweet.status, popularTweet.status, mentions.status].filter(s => s === 'done').length;
+  const numFound = [followings.status, firstTweet.status, popularTweet.status, mentions.status, sharedFollows.status].filter(s => s === 'done').length;
 
   return (
     <div className="shell">
@@ -381,6 +406,7 @@ const App: React.FC = () => {
         {activeUser && (
           <>
             {/* Oldest Follow */}
+            {(toggles.followings || followings.status !== 'idle') && (
             <div className="tweet">
               {activeUserAvatar ? <img src={activeUserAvatar} className="av" /> : <div className="av"></div>}
               <div className="tweet-body">
@@ -427,8 +453,10 @@ const App: React.FC = () => {
                 </div>
               </div>
             </div>
+            )}
 
             {/* First Post */}
+            {(toggles.firstTweet || firstTweet.status !== 'idle') && (
             <div className="tweet">
               {activeUserAvatar ? <img src={activeUserAvatar} className="av" /> : <div className="av"></div>}
               <div className="tweet-body">
@@ -460,8 +488,10 @@ const App: React.FC = () => {
                 </div>
               </div>
             </div>
+            )}
 
             {/* 100 Likes */}
+            {(toggles.popularTweet || popularTweet.status !== 'idle') && (
             <div className="tweet">
               {activeUserAvatar ? <img src={activeUserAvatar} className="av" /> : <div className="av"></div>}
               <div className="tweet-body">
@@ -493,8 +523,10 @@ const App: React.FC = () => {
                 </div>
               </div>
             </div>
+            )}
 
             {/* Mentions */}
+            {(toggles.mentions || mentions.status !== 'idle') && (
             <div className="tweet">
               {activeUserAvatar ? <img src={activeUserAvatar} className="av" /> : <div className="av"></div>}
               <div className="tweet-body">
@@ -507,8 +539,24 @@ const App: React.FC = () => {
                 </div>
                 <div className="tweet-tag" style={{ color: mentions.status === 'done' ? 'var(--accent)' : 'var(--muted)' }}>TOP TAGGER</div>
                 <div className="tweet-text" style={{ color: mentions.status === 'done' ? 'var(--text)' : 'var(--muted)' }}>
-                  {mentions.status === 'done' && mentions.data && mentions.data[0] ? (
-                    <>The account that tags @{activeUser} the most is <strong>@{mentions.data[0].user.username}</strong> ({mentions.data[0].count} times).</>
+                  {mentions.status === 'done' && mentions.data && mentions.data.length > 0 ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '10px' }}>
+                      {mentions.data.map((m, i) => (
+                        <div key={m.user.userId} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(255,255,255,0.03)', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                          <div style={{ width: '20px', fontSize: '12px', color: 'var(--muted)', fontWeight: 'bold' }}>{i + 1}</div>
+                          {m.user.profileImageUrlHttps ? (
+                            <img src={m.user.profileImageUrlHttps} crossOrigin="anonymous" style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }} />
+                          ) : (
+                            <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>{m.user.name.charAt(0)}</div>
+                          )}
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontWeight: 'bold', fontSize: '14px', color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.user.name}</div>
+                            <div style={{ fontSize: '12.5px', color: 'var(--muted)' }}>@{m.user.username}</div>
+                          </div>
+                          <div style={{ fontSize: '13px', color: 'var(--accent)', fontWeight: 'bold' }}>{m.count} tags</div>
+                        </div>
+                      ))}
+                    </div>
                   ) : mentions.status === 'loading' ? (
                     <Loader2 size={16} className="animate-spin" />
                   ) : mentions.status === 'error' ? (
@@ -526,6 +574,53 @@ const App: React.FC = () => {
                 </div>
               </div>
             </div>
+            )}
+
+            {/* Shared Follows */}
+            {(toggles.sharedFollows || sharedFollows.status !== 'idle') && (
+            <div className="tweet">
+              {activeUserAvatar ? <img src={activeUserAvatar} className="av" /> : <div className="av"></div>}
+              <div className="tweet-body">
+                <div className="tweet-head">
+                  <span className="name">{activeUser}</span>
+                  <span className="badge outline">∞</span>
+                  <span className="handle">@{activeUser}</span>
+                  <span className="dot">·</span>
+                  <span className="time">{sharedFollows.status === 'done' ? 'Found' : 'Pending'}</span>
+                </div>
+                <div className="tweet-tag" style={{ color: sharedFollows.status === 'done' ? 'var(--accent)' : 'var(--muted)' }}>SHARED FOLLOWS</div>
+                <div className="tweet-text" style={{ color: sharedFollows.status === 'done' ? 'var(--text)' : 'var(--muted)' }}>
+                  {sharedFollows.status === 'done' && sharedFollows.data && sharedFollows.data.length > 0 ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '10px' }}>
+                      {sharedFollows.data.map((u, i) => (
+                        <div key={u.username} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(255,255,255,0.03)', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                          <div style={{ width: '20px', fontSize: '12px', color: 'var(--muted)', fontWeight: 'bold' }}>{i + 1}</div>
+                          <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>{u.username.charAt(0)}</div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontWeight: 'bold', fontSize: '14px', color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>@{u.username}</div>
+                            <div style={{ fontSize: '12.5px', color: 'var(--muted)' }}>{u.commonCount} shared follows</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : sharedFollows.status === 'loading' ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : sharedFollows.status === 'error' ? (
+                    <>Error: {sharedFollows.error}</>
+                  ) : (
+                    <>Run this query to find out who follows the same accounts.</>
+                  )}
+                </div>
+                <div className="tweet-actions">
+                  {sharedFollows.status === 'idle' || sharedFollows.status === 'error' ? (
+                    <div className="action" onClick={() => runSharedFollows(activeUser)}><Play size={18} /><span>Run query</span></div>
+                  ) : (
+                    <div className="action" style={{ color: 'var(--accent)' }}><CheckCircle2 size={18} /><span>Completed</span></div>
+                  )}
+                </div>
+              </div>
+            </div>
+            )}
           </>
         )}
       </div>
@@ -553,6 +648,10 @@ const App: React.FC = () => {
           <div className="qitem" onClick={() => toggle('mentions')}>
             <div><div className="ql">Top tagger</div><div className="qm">{mentions.status}</div></div>
             <div className={`toggle ${toggles.mentions ? 'on' : ''}`}></div>
+          </div>
+          <div className="qitem" onClick={() => toggle('sharedFollows')}>
+            <div><div className="ql">Shared follows</div><div className="qm">{sharedFollows.status}</div></div>
+            <div className={`toggle ${toggles.sharedFollows ? 'on' : ''}`}></div>
           </div>
           
           <button className="see-more" onClick={runAll}>Run all queries</button>
@@ -587,9 +686,15 @@ const App: React.FC = () => {
                   <div className="v">{mentions.status === 'done' && mentions.data ? `@${mentions.data[0].user.username}` : '-'}</div>
                 </div>
               )}
+              {toggles.sharedFollows && (
+                <div className="poster-item">
+                  <div className="k">Shared follows</div>
+                  <div className="v">{sharedFollows.status === 'done' && sharedFollows.data ? `@${sharedFollows.data[0].username}` : '-'}</div>
+                </div>
+              )}
               <div className="poster-item">
                 <div className="k">Findings</div>
-                <div className="v">{numFound} of 4</div>
+                <div className="v">{numFound} of 5</div>
               </div>
             </div>
           </div>
