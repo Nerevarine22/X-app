@@ -192,15 +192,15 @@ const App: React.FC = () => {
     const createdYear = new Date(user.createdAt).getFullYear();
     const currentYear = new Date().getFullYear();
     
-    // For views, twitter introduced them heavily around end of 2022
-    const startYear = isPopular ? Math.max(createdYear, 2022) : createdYear;
+    // We search from the year they created the account
+    const startYear = createdYear;
 
     let targetYear = null;
     
     // Step 1: Find the Year
     for (let y = startYear; y <= currentYear; y++) {
       setProgressText(`Сканую рік: ${y}...`);
-      const query = `from:${cleanUsername} ${isPopular ? 'min_views:1000' : ''} since:${y}-01-01 until:${y}-12-31`;
+      const query = `from:${cleanUsername} ${isPopular ? 'min_faves:1000' : ''} since:${y}-01-01 until:${y}-12-31`;
       const res = await fetch(`/api/twitter/tweet/advanced_search?query=${encodeURIComponent(query)}`, {
         headers: { 'X-API-Key': getApiKey() }
       });
@@ -213,7 +213,7 @@ const App: React.FC = () => {
     }
 
     if (!targetYear) {
-      throw new Error(isPopular ? 'Не знайдено твітів з 1000+ переглядів' : 'Твітів не знайдено');
+      throw new Error(isPopular ? 'Не знайдено твітів з 1000+ лайків' : 'Твітів не знайдено');
     }
 
     // Step 2: Find the Month
@@ -223,7 +223,7 @@ const App: React.FC = () => {
       const nextYearStr = m === 12 ? targetYear + 1 : targetYear;
       
       setProgressText(`Сканую місяць: ${monthStr}.${targetYear}...`);
-      const query = `from:${cleanUsername} ${isPopular ? 'min_views:1000' : ''} since:${targetYear}-${monthStr}-01 until:${nextYearStr}-${nextMonthStr}-01`;
+      const query = `from:${cleanUsername} ${isPopular ? 'min_faves:1000' : ''} since:${targetYear}-${monthStr}-01 until:${nextYearStr}-${nextMonthStr}-01`;
       const res = await fetch(`/api/twitter/tweet/advanced_search?query=${encodeURIComponent(query)}`, {
         headers: { 'X-API-Key': getApiKey() }
       });
@@ -322,7 +322,7 @@ const App: React.FC = () => {
           onClick={() => { setMode('popular_tweet'); setHasSearched(false); }}
           style={{ padding: '0.75rem 1.5rem', borderRadius: '12px', background: mode === 'popular_tweet' ? 'var(--primary)' : 'rgba(255,255,255,0.05)', color: 'white', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', transition: 'all 0.2s' }}
         >
-          <TrendingUp size={18} /> 1000 Переглядів
+          <TrendingUp size={18} /> 1000 Лайків
         </button>
       </div>
 
