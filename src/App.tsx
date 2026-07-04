@@ -178,7 +178,7 @@ const App: React.FC = () => {
     
     if (!userInfoRes.ok) throw new Error('Не вдалося знайти користувача');
     const userData = await userInfoRes.json();
-    const user = userData.user || userData;
+    const user = userData.data || userData.user || userData;
     if (!user || !user.createdAt) throw new Error('Не вдалося отримати дату реєстрації');
     
     const authorData = {
