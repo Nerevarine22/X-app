@@ -305,7 +305,7 @@ const App: React.FC = () => {
       const r = await fetch(url, { headers: { 'X-API-Key': getApiKey() } });
       const d = await r.json();
       
-      if (!r.ok || (d.code !== 0 && d.status !== 'success' && d.code !== 200)) {
+      if (!r.ok || d.tweets === undefined) {
         throw new Error(`API Error: ${d?.msg || d?.message || 'Unknown error'}`);
       }
 
