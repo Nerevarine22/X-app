@@ -55,7 +55,7 @@ const App: React.FC = () => {
 
       const data = await response.json();
       
-      const allFollowings: TwitterUser[] = data.users || [];
+      const allFollowings: TwitterUser[] = data.data || [];
       
       // Get the oldest 5
       setFollowings(allFollowings.slice(-5).reverse());
