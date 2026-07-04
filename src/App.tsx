@@ -386,7 +386,7 @@ const App: React.FC = () => {
         </div>
 
         <form className="compose" onSubmit={initSearch}>
-          <div className="av"></div>
+          {activeUserAvatar ? <img src={activeUserAvatar} className="av" crossOrigin="anonymous" style={{ objectFit: 'cover' }} /> : <div className="av"></div>}
           <div className="compose-body">
             <input 
               id="search-input"
