@@ -200,7 +200,7 @@ const App: React.FC = () => {
     // Step 1: Find the Year
     for (let y = startYear; y <= currentYear; y++) {
       setProgressText(`Сканую рік: ${y}...`);
-      const query = `from:${cleanUsername} ${isPopular ? 'min_faves:100' : ''} since:${y}-01-01 until:${y}-12-31`;
+      const query = `from:${cleanUsername} ${isPopular ? 'min_faves:100' : ''} -filter:replies since:${y}-01-01 until:${y}-12-31`;
       const res = await fetch(`/api/twitter/tweet/advanced_search?query=${encodeURIComponent(query)}`, {
         headers: { 'X-API-Key': getApiKey() }
       });
@@ -223,7 +223,7 @@ const App: React.FC = () => {
       const nextYearStr = m === 12 ? targetYear + 1 : targetYear;
       
       setProgressText(`Сканую місяць: ${monthStr}.${targetYear}...`);
-      const query = `from:${cleanUsername} ${isPopular ? 'min_faves:100' : ''} since:${targetYear}-${monthStr}-01 until:${nextYearStr}-${nextMonthStr}-01`;
+      const query = `from:${cleanUsername} ${isPopular ? 'min_faves:100' : ''} -filter:replies since:${targetYear}-${monthStr}-01 until:${nextYearStr}-${nextMonthStr}-01`;
       const res = await fetch(`/api/twitter/tweet/advanced_search?query=${encodeURIComponent(query)}`, {
         headers: { 'X-API-Key': getApiKey() }
       });
