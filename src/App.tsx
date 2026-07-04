@@ -55,9 +55,17 @@ const App: React.FC = () => {
 
       const data = await response.json();
       
+      // TwexAPI returns custom error codes in JSON even on some 200s or on 403s
+      if (data.code && data.code !== 200) {
+        throw new Error(`API Error: ${data.msg || data.code}`);
+      }
+      
       const allFollowings: TwitterUser[] = data.data || [];
       
-      // Get the oldest 5
+      // To get the absolute oldest followings, we fetch a batch (e.g., 200) 
+      // and take the ones at the end of the array, since Twitter returns newest first.
+      // If a user has thousands of followings, a single request of 200 will only show 
+      // the oldest *within those 200*. Fetching all requires multiple requests/pagination.
       setFollowings(allFollowings.slice(-5).reverse());
       
     } catch (err: any) {
