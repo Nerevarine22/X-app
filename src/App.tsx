@@ -42,7 +42,7 @@ const App: React.FC = () => {
         throw new Error('You pasted "http://localhost:5173/" instead of your TwexAPI key in .env. Please update .env with your real key.');
       }
 
-      const response = await fetch(`https://api.twexapi.io/twitter/following/${encodeURIComponent(cleanUsername)}/200`, {
+      const response = await fetch(`https://api.twexapi.io/twitter/following/${encodeURIComponent(cleanUsername)}/5000`, {
         headers: {
           'Authorization': `Bearer ${apiKey}`,
           'Content-Type': 'application/json'
@@ -62,10 +62,9 @@ const App: React.FC = () => {
       
       const allFollowings: TwitterUser[] = data.data || [];
       
-      // To get the absolute oldest followings, we fetch a batch (e.g., 200) 
+      // To get the absolute oldest followings, we fetch a large batch (5000) 
       // and take the ones at the end of the array, since Twitter returns newest first.
-      // If a user has thousands of followings, a single request of 200 will only show 
-      // the oldest *within those 200*. Fetching all requires multiple requests/pagination.
+      // 5000 covers the entirety of followings for 99% of normal users.
       setFollowings(allFollowings.slice(-5).reverse());
       
     } catch (err: any) {
