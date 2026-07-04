@@ -169,6 +169,10 @@ const App: React.FC = () => {
     const type = isPopular ? 'popular' : 'first';
     const cachedTweet = await getCachedTweetFromFirebase(cleanUsername, type);
     if (cachedTweet) {
+      if (cachedTweet.notFound) {
+        setProgressText('Завантажено з глобального кешу 🔥');
+        throw new Error(isPopular ? 'Не знайдено твітів з 100+ лайків' : 'Твітів не знайдено');
+      }
       setProgressText('Завантажено з глобального кешу 🔥');
       setFoundTweet(cachedTweet.tweet);
       setAuthor(cachedTweet.author);
@@ -217,6 +221,7 @@ const App: React.FC = () => {
     }
 
     if (!targetYear) {
+      await saveTweetToFirebaseCache(cleanUsername, type, { notFound: true, author: authorData });
       throw new Error(isPopular ? 'Не знайдено твітів з 100+ лайків' : 'Твітів не знайдено');
     }
 
@@ -273,6 +278,10 @@ const App: React.FC = () => {
         return;
       }
     }
+    
+    // Fallback if month loop finishes but no tweet was set
+    await saveTweetToFirebaseCache(cleanUsername, type, { notFound: true, author: authorData });
+    throw new Error(isPopular ? 'Не знайдено твітів з 100+ лайків' : 'Твітів не знайдено');
   };
 
   const fetchMentions = async (cleanUsername: string) => {
