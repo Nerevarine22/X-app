@@ -1,8 +1,8 @@
 import React, { useState, useRef } from 'react';
-import { Search, Loader2, Users, ArrowRight, MessageCircle, FileText, TrendingUp, Megaphone, Download } from 'lucide-react';
+import { Search, Loader2, Play, Bookmark, Download, Settings, Clock, BadgeCheck, CheckCircle2 } from 'lucide-react';
 import { toPng } from 'html-to-image';
-import { getCachedFollowingsFromFirebase, saveFollowingsToFirebaseCache, findSimilarUsersInFirebase, getCachedTweetFromFirebase, saveTweetToFirebaseCache, getCachedMentionsFromFirebase, saveMentionsToFirebaseCache } from './firebase';
-import type { SimilarUser, MentionUser } from './firebase';
+import { getCachedFollowingsFromFirebase, saveFollowingsToFirebaseCache, getCachedTweetFromFirebase, saveTweetToFirebaseCache, getCachedMentionsFromFirebase, saveMentionsToFirebaseCache } from './firebase';
+import type { MentionUser } from './firebase';
 
 interface TwitterUser {
   userId: string;
@@ -21,721 +21,544 @@ interface Tweet {
   retweetCount: number;
 }
 
-type Mode = 'followings' | 'first_tweet' | 'popular_tweet' | 'mentions';
+type QueryStatus = 'idle' | 'loading' | 'done' | 'error';
+
+interface QueryState<T> {
+  status: QueryStatus;
+  data: T | null;
+  error?: string;
+}
 
 const App: React.FC = () => {
-  const [mode, setMode] = useState<Mode>('followings');
-  const [username, setUsername] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [hasSearched, setHasSearched] = useState(false);
-  const [progressText, setProgressText] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const [activeUser, setActiveUser] = useState('');
+  const [activeUserAvatar, setActiveUserAvatar] = useState(''); // Fetch on search
 
-  // States for followings mode
-  const [followings, setFollowings] = useState<TwitterUser[]>([]);
-  const cardRef = useRef<HTMLDivElement>(null);
+  // States for 4 queries
+  const [followings, setFollowings] = useState<QueryState<TwitterUser[]>>({ status: 'idle', data: null });
+  const [firstTweet, setFirstTweet] = useState<QueryState<Tweet>>({ status: 'idle', data: null });
+  const [popularTweet, setPopularTweet] = useState<QueryState<Tweet>>({ status: 'idle', data: null });
+  const [mentions, setMentions] = useState<QueryState<MentionUser[]>>({ status: 'idle', data: null });
+
+  // Toggles for card
+  const [toggles, setToggles] = useState({ followings: true, firstTweet: true, popularTweet: true, mentions: false });
+
+  const posterRef = useRef<HTMLDivElement>(null);
   const [isDownloading, setIsDownloading] = useState(false);
 
+  const getApiKey = () => {
+    const apiKey = import.meta.env.VITE_TWITTERAPI_IO_KEY || import.meta.env.VITE_TWEXAPI_KEY;
+    if (!apiKey) throw new Error('API key is not defined in .env');
+    return apiKey;
+  };
+
+  const initSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const clean = searchInput.trim().replace(/^@/, '');
+    if (!clean) return;
+    setActiveUser(clean);
+    
+    // Reset states
+    setFollowings({ status: 'idle', data: null });
+    setFirstTweet({ status: 'idle', data: null });
+    setPopularTweet({ status: 'idle', data: null });
+    setMentions({ status: 'idle', data: null });
+    setActiveUserAvatar('');
+
+    // Fetch avatar just for UI
+    try {
+      const res = await fetch(`/api/twitter/user/info?userName=${clean}`, { headers: { 'X-API-Key': getApiKey() } });
+      const data = await res.json();
+      const u = data.data || data.user || data;
+      if (u) setActiveUserAvatar(u.profilePicture || u.profile_image_url_https || '');
+    } catch(e) {}
+  };
+
+  // 1. Fetch Followings
+  const runFollowings = async () => {
+    if (!activeUser) return;
+    setFollowings({ status: 'loading', data: null });
+    try {
+      const cleanUsername = activeUser;
+      const cacheKey = `twitter_first_follows_v2_${cleanUsername.toLowerCase()}`;
+      const cachedData = localStorage.getItem(cacheKey);
+      if (cachedData) {
+        try {
+          const parsed = JSON.parse(cachedData);
+          if (parsed && parsed.length > 0) {
+            setFollowings({ status: 'done', data: parsed });
+            return;
+          }
+        } catch(e) {}
+      }
+
+      const fbCache = await getCachedFollowingsFromFirebase(cleanUsername);
+      if (fbCache && fbCache.followings && fbCache.followings.length > 0) {
+        setFollowings({ status: 'done', data: fbCache.followings });
+        return;
+      }
+
+      const userCheck = await fetch(`/api/twitter/user/info?userName=${cleanUsername}`, { headers: { 'X-API-Key': getApiKey() } });
+      if (userCheck.ok) {
+        const d = await userCheck.json();
+        if (d.user?.friendsCount > 3000) throw new Error('Limit is 3000 followings.');
+      }
+
+      const allFollowings: TwitterUser[] = [];
+      const seenUserIds = new Set();
+      let cursor = '';
+      let hasNextPage = true;
+
+      while (hasNextPage) {
+        let url = `/api/twitter/user/followings?userName=${cleanUsername}`;
+        if (cursor) url += `&cursor=${encodeURIComponent(cursor)}`;
+        const res = await fetch(url, { headers: { 'X-API-Key': getApiKey() } });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.msg || 'Error');
+        
+        const items = data.followings || data.users || data.data || [];
+        for (const user of items) {
+          const userId = user.id || user.userId || user.user_id;
+          if (userId && !seenUserIds.has(userId)) {
+            seenUserIds.add(userId);
+            allFollowings.push({
+              userId,
+              name: user.name || '',
+              username: user.userName || user.username || user.screen_name || '',
+              profileImageUrlHttps: user.profilePicture || user.profileImageUrlHttps || ''
+            });
+          }
+        }
+        hasNextPage = data.has_next_page === true || data.hasNextPage === true;
+        cursor = data.next_cursor || data.nextCursor;
+        if (!hasNextPage || !cursor) break;
+      }
+      
+      const oldest = allFollowings.slice(-5).reverse();
+      setFollowings({ status: 'done', data: oldest });
+      try { localStorage.setItem(cacheKey, JSON.stringify(oldest)); } catch(e) {}
+      await saveFollowingsToFirebaseCache(cleanUsername, oldest, allFollowings.map(u=>u.username));
+    } catch(e: any) {
+      setFollowings({ status: 'error', data: null, error: e.message });
+    }
+  };
+
+  // 2. Fetch Tweet (First or Popular)
+  const runTweet = async (isPopular: boolean) => {
+    if (!activeUser) return;
+    const setter = isPopular ? setPopularTweet : setFirstTweet;
+    setter({ status: 'loading', data: null });
+    try {
+      const type = isPopular ? 'popular' : 'first';
+      const cleanUsername = activeUser;
+      
+      const cached = await getCachedTweetFromFirebase(cleanUsername, type);
+      if (cached) {
+        if (cached.notFound) throw new Error('Not found');
+        setter({ status: 'done', data: cached.tweet });
+        return;
+      }
+
+      const uRes = await fetch(`/api/twitter/user/info?userName=${cleanUsername}`, { headers: { 'X-API-Key': getApiKey() } });
+      const uData = await uRes.json();
+      const user = uData.data || uData.user || uData;
+      if (!user || !user.createdAt) throw new Error('No date');
+      
+      const authorData = { userId: user.id||user.rest_id, name: user.name, username: user.userName||user.screen_name, profileImageUrlHttps: user.profilePicture||user.profile_image_url_https };
+      
+      const startYear = new Date(user.createdAt).getFullYear();
+      const currentYear = new Date().getFullYear();
+      let targetYear = null;
+      
+      for (let y = startYear; y <= currentYear; y++) {
+        const query = `from:${cleanUsername} ${isPopular ? 'min_faves:100' : ''} -filter:replies since:${y}-01-01 until:${y}-12-31`;
+        const res = await fetch(`/api/twitter/tweet/advanced_search?query=${encodeURIComponent(query)}`, { headers: { 'X-API-Key': getApiKey() } });
+        const d = await res.json();
+        if ((d.tweets || []).length > 0) { targetYear = y; break; }
+      }
+
+      if (!targetYear) {
+        await saveTweetToFirebaseCache(cleanUsername, type, { notFound: true, author: authorData });
+        throw new Error('Not found');
+      }
+
+      for (let m = 1; m <= 12; m++) {
+        const ms = m.toString().padStart(2, '0');
+        const nms = m===12 ? '01' : (m+1).toString().padStart(2,'0');
+        const ny = m===12 ? targetYear+1 : targetYear;
+        const query = `from:${cleanUsername} ${isPopular ? 'min_faves:100' : ''} -filter:replies since:${targetYear}-${ms}-01 until:${ny}-${nms}-01`;
+        const res = await fetch(`/api/twitter/tweet/advanced_search?query=${encodeURIComponent(query)}`, { headers: { 'X-API-Key': getApiKey() } });
+        const d = await res.json();
+        if ((d.tweets || []).length > 0) {
+          let allT: any[] = [];
+          let cursor = '';
+          let hasNext = true;
+          while(hasNext) {
+            let url = `/api/twitter/tweet/advanced_search?query=${encodeURIComponent(query)}`;
+            if(cursor) url += `&cursor=${encodeURIComponent(cursor)}`;
+            const r = await fetch(url, { headers: { 'X-API-Key': getApiKey() } });
+            const pData = await r.json();
+            allT = [...allT, ...(pData.tweets||[])];
+            if(pData.has_next_page && pData.next_cursor) cursor = pData.next_cursor;
+            else hasNext = false;
+          }
+          const oldest = allT[allT.length - 1];
+          const finalTweet: Tweet = {
+            id: oldest.id || oldest.tweet_id || oldest.rest_id,
+            text: oldest.text || oldest.full_text,
+            createdAt: oldest.createdAt || oldest.created_at,
+            viewCount: oldest.viewCount || oldest.views || 0,
+            likeCount: oldest.likeCount || oldest.favorite_count || 0,
+            retweetCount: oldest.retweetCount || oldest.retweet_count || 0,
+          };
+          setter({ status: 'done', data: finalTweet });
+          await saveTweetToFirebaseCache(cleanUsername, type, { tweet: finalTweet, author: authorData });
+          return;
+        }
+      }
+      throw new Error('Not found');
+    } catch(e: any) {
+      setter({ status: 'error', data: null, error: e.message });
+    }
+  };
+
+  // 3. Fetch Mentions
+  const runMentions = async () => {
+    if (!activeUser) return;
+    setMentions({ status: 'loading', data: null });
+    try {
+      const cleanUsername = activeUser;
+      const cached = await getCachedMentionsFromFirebase(cleanUsername);
+      if (cached) {
+        setMentions({ status: 'done', data: cached });
+        return;
+      }
+
+      let all: any[] = [];
+      let cursor = '';
+      let hasNext = true;
+      let pageCount = 0;
+      const maxPages = 10;
+      const query = `@${cleanUsername}`;
+      
+      while (hasNext && pageCount < maxPages) {
+        pageCount++;
+        let url = `/api/twitter/tweet/advanced_search?query=${encodeURIComponent(query)}`;
+        if (cursor) url += `&cursor=${encodeURIComponent(cursor)}`;
+        const r = await fetch(url, { headers: { 'X-API-Key': getApiKey() } });
+        const d = await r.json();
+        all = [...all, ...(d.tweets||[])];
+        if (d.has_next_page && d.next_cursor) cursor = d.next_cursor;
+        else hasNext = false;
+      }
+      
+      const userMap = new Map<string, MentionUser>();
+      for (const tweet of all) {
+        const a = tweet.author;
+        if (a) {
+          const uName = a.userName || a.screen_name;
+          if (uName && uName.toLowerCase() !== cleanUsername.toLowerCase()) {
+            if (!userMap.has(uName)) userMap.set(uName, { user: { userId: a.id||a.rest_id, name: a.name, username: uName, profileImageUrlHttps: a.profilePicture||a.profile_image_url_https }, count: 0 });
+            userMap.get(uName)!.count++;
+          }
+        }
+      }
+      const sorted = Array.from(userMap.values()).sort((a, b) => b.count - a.count).slice(0, 10);
+      if (sorted.length === 0) throw new Error('No mentions found');
+      
+      setMentions({ status: 'done', data: sorted });
+      await saveMentionsToFirebaseCache(cleanUsername, sorted);
+    } catch(e: any) {
+      setMentions({ status: 'error', data: null, error: e.message });
+    }
+  };
+
+  const runAll = () => {
+    if(followings.status !== 'done') runFollowings();
+    if(firstTweet.status !== 'done') runTweet(false);
+    if(popularTweet.status !== 'done') runTweet(true);
+    if(mentions.status !== 'done') runMentions();
+  };
+
   const downloadCard = async () => {
-    if (!cardRef.current) return;
+    if (!posterRef.current) return;
     try {
       setIsDownloading(true);
-      const dataUrl = await toPng(cardRef.current, { 
-        quality: 1, 
-        pixelRatio: 2,
-        backgroundColor: '#0a0a0f', // Match the app background
-        style: { transform: 'scale(1)' }
-      });
+      const dataUrl = await toPng(posterRef.current, { quality: 1, pixelRatio: 2, backgroundColor: '#1d1f23', style: { transform: 'scale(1)' } });
       const link = document.createElement('a');
-      link.download = `first-subscriptions-${username || 'card'}.png`;
+      link.download = `archive-${activeUser || 'card'}.png`;
       link.href = dataUrl;
       link.click();
     } catch (err) {
-      console.error('Error generating image', err);
-      alert('Не вдалося згенерувати зображення. Можливо, проблема з CORS для картинок.');
+      alert('Error generating image');
     } finally {
       setIsDownloading(false);
     }
   };
 
-  const [similarUsers, setSimilarUsers] = useState<SimilarUser[]>([]);
+  const toggle = (key: keyof typeof toggles) => setToggles(p => ({ ...p, [key]: !p[key] }));
 
-  // States for tweet modes
-  // States for tweet modes
-  const [foundTweet, setFoundTweet] = useState<Tweet | null>(null);
-  const [author, setAuthor] = useState<TwitterUser | null>(null);
-
-  // States for mentions mode
-  const [topMentions, setTopMentions] = useState<MentionUser[]>([]);
-
-  const getApiKey = () => {
-    const apiKey = import.meta.env.VITE_TWITTERAPI_IO_KEY || import.meta.env.VITE_TWEXAPI_KEY;
-    if (!apiKey) throw new Error('API key is not defined in .env');
-    if (apiKey.includes('localhost')) throw new Error('Please update .env with your real TwitterAPI.io key.');
-    return apiKey;
-  };
-
-  const fetchFollowings = async (cleanUsername: string) => {
-    setFollowings([]);
-    setSimilarUsers([]);
-    setProgressText('Підключаюся до TwitterAPI.io...');
-
-    const cacheKey = `twitter_first_follows_v2_${cleanUsername.toLowerCase()}`;
-    const cachedData = localStorage.getItem(cacheKey);
-    if (cachedData) {
-      try {
-        const parsedCache = JSON.parse(cachedData);
-        if (parsedCache && parsedCache.length > 0) {
-          setProgressText('Завантажено з локального кешу ⚡');
-          setFollowings(parsedCache);
-          
-          // Check Firebase in background to get similar users
-          const firebaseCache = await getCachedFollowingsFromFirebase(cleanUsername);
-          if (firebaseCache && firebaseCache.allFollowingsUsernames && firebaseCache.allFollowingsUsernames.length > 0) {
-             const similar = await findSimilarUsersInFirebase(cleanUsername, new Set(firebaseCache.allFollowingsUsernames as string[]));
-             setSimilarUsers(similar);
-          }
-          
-          setLoading(false);
-          return;
-        }
-      } catch(e) {}
-    }
-
-    setProgressText('Перевіряю глобальний кеш (Firebase)...');
-    const firebaseCache = await getCachedFollowingsFromFirebase(cleanUsername);
-    if (firebaseCache && firebaseCache.followings && firebaseCache.followings.length > 0) {
-      setProgressText('Завантажено з глобального кешу 🔥. Шукаю збіги...');
-      setFollowings(firebaseCache.followings);
-      try { localStorage.setItem(cacheKey, JSON.stringify(firebaseCache.followings)); } catch (e) {}
-      
-      const usernamesSet = new Set(firebaseCache.allFollowingsUsernames || []);
-      if (usernamesSet.size > 0) {
-        const similar = await findSimilarUsersInFirebase(cleanUsername, usernamesSet as Set<string>);
-        setSimilarUsers(similar);
-      }
-      return;
-    }
-
-    setProgressText('Перевіряю існування профілю...');
-    const userCheckResponse = await fetch(`/api/twitter/user/info?userName=${cleanUsername}`, {
-      headers: { 'X-API-Key': getApiKey() }
-    });
-    
-    if (userCheckResponse.ok) {
-      const userData = await userCheckResponse.json();
-      if (userData.user?.friendsCount > 3000) {
-        throw new Error(`User has ${userData.user.friendsCount} followings. Limit is 3000 to save API credits.`);
-      }
-    }
-
-    setProgressText('Починаю завантаження списку...');
-    await new Promise(resolve => setTimeout(resolve, 200));
-
-    const allFollowings: TwitterUser[] = [];
-    const seenUserIds = new Set();
-    let cursor = '';
-    let hasNextPage = true;
-    let pageCount = 0;
-
-    while (hasNextPage) {
-      pageCount++;
-      setProgressText(`Завантаження сторінки ${pageCount}... Отримано ${allFollowings.length}`);
-
-      let url = `/api/twitter/user/followings?userName=${cleanUsername}`;
-      if (cursor) url += `&cursor=${encodeURIComponent(cursor)}`;
-
-      const response = await fetch(url, { headers: { 'X-API-Key': getApiKey() } });
-      const data = await response.json();
-
-      if (!response.ok || (data.code !== 0 && data.status !== 'success' && data.code !== 200)) {
-        throw new Error(`API Error: ${data?.msg || data?.message || 'Unknown error'}`);
-      }
-
-      const items = data.followings || data.users || data.data || [];
-      for (const user of items) {
-        const userId = user.id || user.userId || user.user_id;
-        if (userId && !seenUserIds.has(userId)) {
-          seenUserIds.add(userId);
-          allFollowings.push({
-            userId,
-            name: user.name || '',
-            username: user.userName || user.username || user.screen_name || '',
-            profileImageUrlHttps: user.profilePicture || user.profileImageUrlHttps || user.profile_image_url_https || user.profile_image_url || '',
-            description: user.description || ''
-          });
-        }
-      }
-
-      hasNextPage = data.has_next_page === true || data.hasNextPage === true;
-      cursor = data.next_cursor || data.nextCursor;
-      if (!hasNextPage || !cursor) break;
-      await new Promise(resolve => setTimeout(resolve, 200));
-    }
-    
-    setProgressText(`Завершено! Отримано ${allFollowings.length} підписок.`);
-    const oldestFollowings = allFollowings.slice(-5).reverse();
-    setFollowings(oldestFollowings);
-    
-    try { localStorage.setItem(cacheKey, JSON.stringify(oldestFollowings)); } catch(e) {}
-
-    const allUsernames = allFollowings.map(u => u.username);
-    await saveFollowingsToFirebaseCache(cleanUsername, oldestFollowings, allUsernames);
-    
-    setProgressText('Шукаю схожі профілі в базі...');
-    const similar = await findSimilarUsersInFirebase(cleanUsername, new Set(allUsernames));
-    setSimilarUsers(similar);
-  };
-
-  const findTweet = async (cleanUsername: string, isPopular: boolean) => {
-    setFoundTweet(null);
-    setAuthor(null);
-    setProgressText('Перевіряю кеш...');
-    
-    const type = isPopular ? 'popular' : 'first';
-    const cachedTweet = await getCachedTweetFromFirebase(cleanUsername, type);
-    if (cachedTweet) {
-      if (cachedTweet.notFound) {
-        setProgressText('Завантажено з глобального кешу 🔥');
-        throw new Error(isPopular ? 'Не знайдено твітів з 100+ лайків' : 'Твітів не знайдено');
-      }
-      setProgressText('Завантажено з глобального кешу 🔥');
-      setFoundTweet(cachedTweet.tweet);
-      setAuthor(cachedTweet.author);
-      return;
-    }
-
-    setProgressText('Отримую дані профілю...');
-    const userInfoRes = await fetch(`/api/twitter/user/info?userName=${cleanUsername}`, {
-      headers: { 'X-API-Key': getApiKey() }
-    });
-    
-    if (!userInfoRes.ok) throw new Error('Не вдалося знайти користувача');
-    const userData = await userInfoRes.json();
-    const user = userData.data || userData.user || userData;
-    if (!user || !user.createdAt) throw new Error('Не вдалося отримати дату реєстрації');
-    
-    const authorData = {
-      userId: user.id || user.rest_id,
-      name: user.name,
-      username: user.userName || user.screen_name,
-      profileImageUrlHttps: user.profilePicture || user.profile_image_url_https
-    };
-    setAuthor(authorData);
-
-    const createdYear = new Date(user.createdAt).getFullYear();
-    const currentYear = new Date().getFullYear();
-    
-    // We search from the year they created the account
-    const startYear = createdYear;
-
-    let targetYear = null;
-    
-    // Step 1: Find the Year
-    for (let y = startYear; y <= currentYear; y++) {
-      setProgressText(`Сканую рік: ${y}...`);
-      const query = `from:${cleanUsername} ${isPopular ? 'min_faves:100' : ''} -filter:replies since:${y}-01-01 until:${y}-12-31`;
-      const res = await fetch(`/api/twitter/tweet/advanced_search?query=${encodeURIComponent(query)}`, {
-        headers: { 'X-API-Key': getApiKey() }
-      });
-      const data = await res.json();
-      const tweets = data.tweets || [];
-      if (tweets.length > 0) {
-        targetYear = y;
-        break;
-      }
-    }
-
-    if (!targetYear) {
-      await saveTweetToFirebaseCache(cleanUsername, type, { notFound: true, author: authorData });
-      throw new Error(isPopular ? 'Не знайдено твітів з 100+ лайків' : 'Твітів не знайдено');
-    }
-
-    // Step 2: Find the Month
-    for (let m = 1; m <= 12; m++) {
-      const monthStr = m.toString().padStart(2, '0');
-      const nextMonthStr = m === 12 ? '01' : (m + 1).toString().padStart(2, '0');
-      const nextYearStr = m === 12 ? targetYear + 1 : targetYear;
-      
-      setProgressText(`Сканую місяць: ${monthStr}.${targetYear}...`);
-      const query = `from:${cleanUsername} ${isPopular ? 'min_faves:100' : ''} -filter:replies since:${targetYear}-${monthStr}-01 until:${nextYearStr}-${nextMonthStr}-01`;
-      const res = await fetch(`/api/twitter/tweet/advanced_search?query=${encodeURIComponent(query)}`, {
-        headers: { 'X-API-Key': getApiKey() }
-      });
-      const data = await res.json();
-      const tweets = data.tweets || [];
-      if (tweets.length > 0) {
-        // Since we found the month, we just fetch all pages for this month and find the absolute oldest
-        setProgressText(`Знайдено місяць! Завантажую всі твіти за ${monthStr}.${targetYear}...`);
-        
-        let allMonthTweets: any[] = [];
-        let cursor = '';
-        let hasNext = true;
-        
-        while (hasNext) {
-          let url = `/api/twitter/tweet/advanced_search?query=${encodeURIComponent(query)}`;
-          if (cursor) url += `&cursor=${encodeURIComponent(cursor)}`;
-          const r = await fetch(url, { headers: { 'X-API-Key': getApiKey() } });
-          const d = await r.json();
-          const pagedTweets = d.tweets || [];
-          allMonthTweets = [...allMonthTweets, ...pagedTweets];
-          
-          if (d.has_next_page && d.next_cursor) {
-            cursor = d.next_cursor;
-          } else {
-            hasNext = false;
-          }
-        }
-        
-        // Twitter returns newest first, so the oldest is the very last one
-        const oldestTweet = allMonthTweets[allMonthTweets.length - 1];
-        
-        const finalTweet: Tweet = {
-          id: oldestTweet.id || oldestTweet.tweet_id || oldestTweet.rest_id,
-          text: oldestTweet.text || oldestTweet.full_text,
-          createdAt: oldestTweet.createdAt || oldestTweet.created_at,
-          viewCount: oldestTweet.viewCount || oldestTweet.views || 0,
-          likeCount: oldestTweet.likeCount || oldestTweet.favorite_count || 0,
-          retweetCount: oldestTweet.retweetCount || oldestTweet.retweet_count || 0,
-        };
-        
-        setFoundTweet(finalTweet);
-        await saveTweetToFirebaseCache(cleanUsername, type, { tweet: finalTweet, author: authorData });
-        return;
-      }
-    }
-    
-    // Fallback if month loop finishes but no tweet was set
-    await saveTweetToFirebaseCache(cleanUsername, type, { notFound: true, author: authorData });
-    throw new Error(isPopular ? 'Не знайдено твітів з 100+ лайків' : 'Твітів не знайдено');
-  };
-
-  const fetchMentions = async (cleanUsername: string) => {
-    setTopMentions([]);
-    setProgressText('Перевіряю глобальний кеш (Firebase)...');
-    
-    const cachedMentions = await getCachedMentionsFromFirebase(cleanUsername);
-    if (cachedMentions) {
-      setProgressText('Завантажено з глобального кешу 🔥');
-      setTopMentions(cachedMentions);
-      return;
-    }
-
-    setProgressText('Завантажую згадки (це може зайняти до хвилини)...');
-    
-    let allMentions: any[] = [];
-    let cursor = '';
-    let hasNext = true;
-    let pageCount = 0;
-    const maxPages = 10;
-    const query = `@${cleanUsername}`;
-    
-    while (hasNext && pageCount < maxPages) {
-      pageCount++;
-      setProgressText(`Завантажую сторінку ${pageCount} з ${maxPages}...`);
-      
-      let url = `/api/twitter/tweet/advanced_search?query=${encodeURIComponent(query)}`;
-      if (cursor) url += `&cursor=${encodeURIComponent(cursor)}`;
-      
-      const r = await fetch(url, { headers: { 'X-API-Key': getApiKey() } });
-      const d = await r.json();
-      
-      if (!r.ok || d.tweets === undefined) {
-        throw new Error(`API Error: ${d?.msg || d?.message || 'Unknown error'}`);
-      }
-
-      const pagedTweets = d.tweets || [];
-      allMentions = [...allMentions, ...pagedTweets];
-      
-      if (d.has_next_page && d.next_cursor) {
-        cursor = d.next_cursor;
-      } else {
-        hasNext = false;
-      }
-      
-      await new Promise(resolve => setTimeout(resolve, 300));
-    }
-    
-    setProgressText('Аналізую авторів...');
-    const userMap = new Map<string, MentionUser>();
-    
-    for (const tweet of allMentions) {
-      const authorObj = tweet.author;
-      if (authorObj) {
-        const authorUsername = authorObj.userName || authorObj.screen_name;
-        if (authorUsername && authorUsername.toLowerCase() !== cleanUsername.toLowerCase()) {
-          if (!userMap.has(authorUsername)) {
-            userMap.set(authorUsername, {
-              user: {
-                userId: authorObj.id || authorObj.rest_id,
-                name: authorObj.name,
-                username: authorUsername,
-                profileImageUrlHttps: authorObj.profilePicture || authorObj.profile_image_url_https
-              },
-              count: 0
-            });
-          }
-          userMap.get(authorUsername)!.count++;
-        }
-      }
-    }
-    
-    const sortedMentions = Array.from(userMap.values())
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 10);
-      
-    if (sortedMentions.length === 0) {
-      throw new Error('Не знайдено жодної згадки (або профіль прихований)');
-    }
-      
-    setTopMentions(sortedMentions);
-    await saveMentionsToFirebaseCache(cleanUsername, sortedMentions);
-  };
-
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const cleanUsername = username.trim().replace(/^@/, '');
-    if (!cleanUsername) return;
-    
-    setLoading(true);
-    setError(null);
-    setHasSearched(true);
-    
-    try {
-      if (mode === 'followings') {
-        await fetchFollowings(cleanUsername);
-      } else if (mode === 'mentions') {
-        await fetchMentions(cleanUsername);
-      } else {
-        await findTweet(cleanUsername, mode === 'popular_tweet');
-      }
-    } catch (err: any) {
-      setError(err.message || 'An error occurred while fetching data');
-      setProgressText('');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const numFound = [followings.status, firstTweet.status, popularTweet.status, mentions.status].filter(s => s === 'done').length;
 
   return (
-    <div className="container animate-fade-in">
-      <header style={{ textAlign: 'center', marginBottom: '2rem' }}>
-        <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '64px', height: '64px', borderRadius: '20px', background: 'rgba(29, 161, 242, 0.1)', color: 'var(--primary)', marginBottom: '1.5rem' }}>
-          <MessageCircle size={32} />
+    <div className="shell">
+      {/* LEFT RAIL */}
+      <div className="rail">
+        <div className="mark">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+            <path d="M7 3h10M7 21h10M8 3c0 4.5 8 4.5 8 9s-8 4.5-8 9M16 3c0 4.5-8 4.5-8 9s8 4.5 8 9"/>
+          </svg>
         </div>
-        <h1 style={{ fontSize: '2.5rem', fontWeight: 700, marginBottom: '1rem', letterSpacing: '-0.02em' }}>
-          Twitter <span style={{ color: 'var(--primary)' }}>Explorer</span>
-        </h1>
-      </header>
-
-      <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', marginBottom: '2rem' }}>
-        <button 
-          onClick={() => { setMode('followings'); setHasSearched(false); }}
-          style={{ padding: '0.75rem 1.5rem', borderRadius: '12px', background: mode === 'followings' ? 'var(--primary)' : 'rgba(255,255,255,0.05)', color: 'white', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', transition: 'all 0.2s' }}
-        >
-          <Users size={18} /> Підписки
-        </button>
-        <button 
-          onClick={() => { setMode('first_tweet'); setHasSearched(false); }}
-          style={{ padding: '0.75rem 1.5rem', borderRadius: '12px', background: mode === 'first_tweet' ? 'var(--primary)' : 'rgba(255,255,255,0.05)', color: 'white', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', transition: 'all 0.2s' }}
-        >
-          <FileText size={18} /> Перший Твіт
-        </button>
-        <button 
-          onClick={() => { setMode('popular_tweet'); setHasSearched(false); }}
-          style={{ padding: '0.75rem 1.5rem', borderRadius: '12px', background: mode === 'popular_tweet' ? 'var(--primary)' : 'rgba(255,255,255,0.05)', color: 'white', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', transition: 'all 0.2s' }}
-        >
-          <TrendingUp size={18} /> 100 Лайків
-        </button>
-        <button 
-          onClick={() => { setMode('mentions'); setHasSearched(false); }}
-          style={{ padding: '0.75rem 1.5rem', borderRadius: '12px', background: mode === 'mentions' ? 'var(--primary)' : 'rgba(255,255,255,0.05)', color: 'white', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', transition: 'all 0.2s' }}
-        >
-          <Megaphone size={18} /> Топ Згадки
-        </button>
+        <div className="rail-item active"><span className="rail-icon"><Search /></span> Search</div>
+        <div className="rail-item"><span className="rail-icon"><Clock /></span> History</div>
+        <div className="rail-item"><span className="rail-icon"><Bookmark /></span> Saved findings</div>
+        <div className="rail-item"><span className="rail-icon"><Download /></span> Downloads</div>
+        <div className="rail-item"><span className="rail-icon"><Settings /></span> Settings</div>
+        
+        <button className="rail-post" onClick={() => document.getElementById('search-input')?.focus()}>Search</button>
+        
+        <div className="rail-account">
+          <div className="av"></div>
+          <div className="info">
+            <div className="n">User <BadgeCheck size={14} color="var(--accent)" /></div>
+            <div className="h">@user</div>
+          </div>
+        </div>
       </div>
 
-      <form onSubmit={handleSearch} className="glass-panel delay-100" style={{ display: 'flex', padding: '0.75rem', gap: '0.75rem', marginBottom: '2.5rem', animation: 'fadeIn 0.4s ease-out 100ms forwards' }}>
-        <div style={{ position: 'relative', flex: 1 }}>
-          <div style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }}>
-            <Search size={20} />
-          </div>
-          <input
-            type="text"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            placeholder="Введіть @username"
-            style={{ 
-              width: '100%', 
-              padding: '1rem 1rem 1rem 3rem', 
-              background: 'rgba(0,0,0,0.2)', 
-              border: '1px solid rgba(255,255,255,0.05)', 
-              borderRadius: '12px',
-              color: 'white',
-              fontSize: '1rem',
-              outline: 'none',
-              transition: 'all 0.2s'
-            }}
-            onFocus={(e) => e.target.style.borderColor = 'var(--primary)'}
-            onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.05)'}
-          />
+      {/* CENTER FEED */}
+      <div className="feed">
+        <div className="feed-header">
+          <h1>{activeUser ? `@${activeUser}` : 'X Archive'}</h1>
+          <p>{activeUser ? `4 queries available · ${numFound} findings on record` : 'Enter a username to begin'}</p>
         </div>
-        <button 
-          type="submit" 
-          disabled={loading || !username.trim()}
-          style={{
-            background: 'var(--primary)',
-            color: 'white',
-            border: 'none',
-            borderRadius: '12px',
-            padding: '0 1.5rem',
-            fontWeight: 600,
-            fontSize: '1rem',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            opacity: (loading || !username.trim()) ? 0.7 : 1,
-            cursor: (loading || !username.trim()) ? 'not-allowed' : 'pointer'
-          }}
-        >
-          {loading ? <Loader2 size={20} style={{ animation: 'spin 1s linear infinite' }} /> : 'Пошук'}
-        </button>
-      </form>
 
-      {loading && progressText && (
-        <div style={{ textAlign: 'center', color: 'var(--primary)', marginBottom: '2rem', animation: 'fadeIn 0.3s' }}>
-          {progressText}
-        </div>
-      )}
-
-      {error && (
-        <div className="glass-panel" style={{ padding: '1.5rem', borderLeft: '4px solid #ef4444', backgroundColor: 'rgba(239, 68, 68, 0.05)' }}>
-          <h3 style={{ color: '#ef4444', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>Error</h3>
-          <p style={{ color: 'rgba(255,255,255,0.8)' }}>{error}</p>
-        </div>
-      )}
-
-      {/* Render Followings Mode */}
-      {mode === 'followings' && hasSearched && !loading && !error && followings.length === 0 && (
-        <div className="glass-panel" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-          <Users size={48} style={{ opacity: 0.2, margin: '0 auto 1rem' }} />
-          <p>Немає підписок або профіль закритий.</p>
-        </div>
-      )}
-
-      {mode === 'followings' && followings.length > 0 && (
-        <div className="delay-200" style={{ animation: 'fadeIn 0.4s ease-out 200ms forwards' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-            <h2 style={{ fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
-              <Users size={20} color="var(--primary)" /> 
-              Найстаріші Підписки
-            </h2>
-            <button 
-              onClick={downloadCard}
-              disabled={isDownloading}
-              style={{
-                display: 'flex', alignItems: 'center', gap: '0.5rem',
-                background: 'rgba(29, 161, 242, 0.1)', color: 'var(--primary)',
-                border: '1px solid rgba(29, 161, 242, 0.2)', borderRadius: '8px',
-                padding: '0.5rem 1rem', cursor: isDownloading ? 'not-allowed' : 'pointer',
-                fontWeight: 600, fontSize: '0.9rem', transition: 'all 0.2s', opacity: isDownloading ? 0.7 : 1
-              }}
-            >
-              {isDownloading ? <Loader2 size={16} className="animate-spin" style={{ animation: 'spin 1s linear infinite' }} /> : <Download size={16} />}
-              {isDownloading ? 'Збереження...' : 'Завантажити як фото'}
-            </button>
-          </div>
-          
-          <div 
-            ref={cardRef}
-            className="glass-panel" 
-            style={{ 
-              padding: '2rem', 
-              background: 'linear-gradient(135deg, rgba(20,20,30,0.95), rgba(10,10,15,0.95))', 
-              borderRadius: '24px', 
-              border: '1px solid rgba(255,255,255,0.1)',
-              boxShadow: '0 20px 40px rgba(0,0,0,0.4)',
-              position: 'relative',
-              overflow: 'hidden'
-            }}
-          >
-            {/* Background decoration */}
-            <div style={{ position: 'absolute', top: '-50%', right: '-20%', width: '300px', height: '300px', background: 'var(--primary)', filter: 'blur(100px)', opacity: 0.1, borderRadius: '50%', pointerEvents: 'none' }}></div>
-            <div style={{ position: 'absolute', bottom: '-20%', left: '-20%', width: '250px', height: '250px', background: '#8a2be2', filter: 'blur(100px)', opacity: 0.1, borderRadius: '50%', pointerEvents: 'none' }}></div>
-            
-            <div style={{ textAlign: 'center', marginBottom: '2rem', position: 'relative', zIndex: 1 }}>
-              <h3 style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0 0 0.5rem 0', color: 'white' }}>Топ 5 перших підписок</h3>
-              <p style={{ color: 'var(--primary)', margin: 0, fontWeight: 500, fontSize: '1.1rem' }}>@{username.trim().replace(/^@/, '')}</p>
+        <form className="compose" onSubmit={initSearch}>
+          <div className="av"></div>
+          <div className="compose-body">
+            <input 
+              id="search-input"
+              type="text" 
+              value={searchInput} 
+              onChange={e => setSearchInput(e.target.value)} 
+              placeholder="Look up a handle... (@username)" 
+            />
+            <div className="compose-actions">
+              <button type="submit" className="post-btn" disabled={!searchInput}>Search</button>
             </div>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', position: 'relative', zIndex: 1 }}>
-              {followings.map((user, index) => (
-                <div key={user.userId} style={{ 
-                  padding: '1rem 1.5rem', 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '1.5rem', 
-                  background: 'rgba(255,255,255,0.03)',
-                  borderRadius: '16px',
-                  border: '1px solid rgba(255,255,255,0.05)',
-                  backdropFilter: 'blur(10px)'
-                }}>
-                  <div style={{ 
-                    width: '36px', height: '36px', borderRadius: '50%', 
-                    background: index === 0 ? 'linear-gradient(135deg, #FFD700, #FDB931)' : index === 1 ? 'linear-gradient(135deg, #E3E3E3, #D1D1D1)' : index === 2 ? 'linear-gradient(135deg, #CD7F32, #B87333)' : 'rgba(255,255,255,0.1)', 
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', 
-                    fontWeight: 'bold', color: index < 3 ? '#000' : 'var(--text-muted)', fontSize: '1rem',
-                    boxShadow: index < 3 ? '0 4px 10px rgba(0,0,0,0.3)' : 'none'
-                  }}>
-                    {index + 1}
-                  </div>
-                  
-                  {user.profileImageUrlHttps ? (
-                    <img src={user.profileImageUrlHttps} crossOrigin="anonymous" alt={user.name} style={{ width: '48px', height: '48px', borderRadius: '50%', objectFit: 'cover', border: '2px solid rgba(255,255,255,0.1)' }} />
+          </div>
+        </form>
+
+        {activeUser && (
+          <>
+            {/* Oldest Follow */}
+            <div className="tweet">
+              {activeUserAvatar ? <img src={activeUserAvatar} className="av" /> : <div className="av"></div>}
+              <div className="tweet-body">
+                <div className="tweet-head">
+                  <span className="name">{activeUser}</span>
+                  <span className="badge blue">✓</span>
+                  <span className="handle">@{activeUser}</span>
+                  <span className="dot">·</span>
+                  <span className="time">{followings.status === 'done' ? 'Found' : followings.status === 'error' ? 'Error' : 'Pending'}</span>
+                </div>
+                <div className="tweet-tag" style={{ color: followings.status === 'done' ? 'var(--accent)' : 'var(--muted)' }}>OLDEST FOLLOW</div>
+                <div className="tweet-text" style={{ color: followings.status === 'done' ? 'var(--text)' : 'var(--muted)' }}>
+                  {followings.status === 'done' && followings.data && followings.data[0] ? (
+                    <>First account ever followed: <strong>@{followings.data[0].username}</strong>.</>
+                  ) : followings.status === 'loading' ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : followings.status === 'error' ? (
+                    <>Error: {followings.error}</>
                   ) : (
-                    <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'linear-gradient(45deg, var(--primary), #8a2be2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', fontWeight: 'bold' }}>
-                      {user.name.charAt(0)}
-                    </div>
+                    <>Run this query to find out the oldest followed account.</>
                   )}
-                  
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <h4 style={{ fontSize: '1.1rem', fontWeight: 600, margin: '0 0 0.25rem 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: 'white' }}>{user.name}</h4>
-                    <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: '0.9rem' }}>@{user.username}</p>
-                  </div>
                 </div>
-              ))}
-            </div>
-            
-            <div style={{ marginTop: '2rem', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', color: 'rgba(255,255,255,0.4)', fontSize: '0.85rem', position: 'relative', zIndex: 1 }}>
-              <MessageCircle size={14} /> Згенеровано в Twitter Explorer
-            </div>
-          </div>
-        </div>
-      )}
-
-      {mode === 'followings' && similarUsers.length > 0 && (
-        <div className="mt-8 delay-300" style={{ animation: 'fadeIn 0.4s ease-out 300ms forwards', marginTop: '2.5rem' }}>
-          <h2 style={{ fontSize: '1.25rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Users size={20} color="var(--primary)" />
-            Схожі профілі з бази
-          </h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {similarUsers.map((su, index) => (
-              <div key={su.username} className="glass-panel" style={{ padding: '1.5rem', display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-                <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'linear-gradient(45deg, var(--primary), #8a2be2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: 'white', fontSize: '1rem' }}>
-                  {index + 1}
+                <div className="tweet-actions">
+                  {followings.status === 'idle' || followings.status === 'error' ? (
+                    <div className="action" onClick={runFollowings}><Play size={18} /><span>Run query</span></div>
+                  ) : (
+                    <div className="action" style={{ color: 'var(--accent)' }}><CheckCircle2 size={18} /><span>Completed</span></div>
+                  )}
                 </div>
-                
-                <div style={{ flex: 1 }}>
-                  <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '0.25rem', color: 'var(--primary)' }}>@{su.username}</h3>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>{su.commonCount} спільних підписок</p>
-                </div>
-                
-                <a href={`https://twitter.com/${su.username}`} target="_blank" rel="noopener noreferrer" style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
-                  <ArrowRight size={20} />
-                </a>
               </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Render Tweet Mode */}
-      {mode !== 'followings' && foundTweet && author && (
-        <div className="glass-panel delay-200" style={{ padding: '2rem', animation: 'fadeIn 0.4s ease-out 200ms forwards' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
-             {author.profileImageUrlHttps && <img src={author.profileImageUrlHttps} alt={author.name} style={{ width: '48px', height: '48px', borderRadius: '50%', objectFit: 'cover' }} />}
-             <div>
-               <h3 style={{ fontSize: '1.1rem', fontWeight: 600 }}>{author.name}</h3>
-               <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>@{author.username}</p>
-             </div>
-          </div>
-          
-          <p style={{ fontSize: '1.25rem', lineHeight: 1.5, marginBottom: '1.5rem', whiteSpace: 'pre-wrap' }}>
-            {foundTweet.text}
-          </p>
-          
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
-            {new Date(foundTweet.createdAt).toLocaleString('uk-UA')}
-          </p>
-          
-          <div style={{ display: 'flex', gap: '2rem', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '1rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)' }}>
-               <TrendingUp size={18} /> {foundTweet.viewCount?.toLocaleString() || 0}
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)' }}>
-               ❤️ {foundTweet.likeCount?.toLocaleString() || 0}
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)' }}>
-               🔁 {foundTweet.retweetCount?.toLocaleString() || 0}
-            </div>
-          </div>
-          
-          <a href={`https://twitter.com/${author.username}/status/${foundTweet.id}`} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', marginTop: '1.5rem', padding: '0.5rem 1rem', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', color: 'var(--primary)', textDecoration: 'none' }}>
-            Відкрити в Twitter →
-          </a>
-        </div>
-      )}
 
-      {/* Render Mentions Mode */}
-      {mode === 'mentions' && hasSearched && !loading && !error && topMentions.length === 0 && (
-        <div className="glass-panel" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-          <Megaphone size={48} style={{ opacity: 0.2, margin: '0 auto 1rem' }} />
-          <p>Не знайдено жодної згадки.</p>
-        </div>
-      )}
-
-      {mode === 'mentions' && topMentions.length > 0 && (
-        <div className="delay-200" style={{ animation: 'fadeIn 0.4s ease-out 200ms forwards' }}>
-          <h2 style={{ fontSize: '1.25rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Megaphone size={20} color="var(--primary)" /> 
-            Топ-10 Фанатів (найчастіші згадки)
-          </h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {topMentions.map((mention, index) => {
-              const u = mention.user;
-              let medal = '';
-              if (index === 0) medal = '🥇 ';
-              else if (index === 1) medal = '🥈 ';
-              else if (index === 2) medal = '🥉 ';
-
-              return (
-                <div key={u.userId} className="glass-panel" style={{ padding: '1.5rem', display: 'flex', alignItems: 'center', gap: '1.5rem', cursor: 'pointer' }}>
-                  <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: index < 3 ? 'linear-gradient(45deg, var(--primary), #8a2be2)' : 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: index < 3 ? 'white' : 'var(--text-muted)', fontSize: '1.1rem' }}>
-                    {medal || (index + 1)}
-                  </div>
-                  
-                  {u.profileImageUrlHttps ? (
-                    <img src={u.profileImageUrlHttps} alt={u.name} style={{ width: '56px', height: '56px', borderRadius: '50%', objectFit: 'cover' }} />
+            {/* First Post */}
+            <div className="tweet">
+              {activeUserAvatar ? <img src={activeUserAvatar} className="av" /> : <div className="av"></div>}
+              <div className="tweet-body">
+                <div className="tweet-head">
+                  <span className="name">{activeUser}</span>
+                  <span className="badge blue">✓</span>
+                  <span className="handle">@{activeUser}</span>
+                  <span className="dot">·</span>
+                  <span className="time">{firstTweet.status === 'done' && firstTweet.data ? new Date(firstTweet.data.createdAt).toLocaleDateString() : 'Pending'}</span>
+                </div>
+                <div className="tweet-tag" style={{ color: firstTweet.status === 'done' ? 'var(--accent)' : 'var(--muted)' }}>FIRST POST</div>
+                <div className="tweet-text" style={{ color: firstTweet.status === 'done' ? 'var(--text)' : 'var(--muted)', whiteSpace: 'pre-wrap' }}>
+                  {firstTweet.status === 'done' && firstTweet.data ? (
+                    <>"{firstTweet.data.text}"</>
+                  ) : firstTweet.status === 'loading' ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : firstTweet.status === 'error' ? (
+                    <>Error: {firstTweet.error}</>
                   ) : (
-                    <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', fontWeight: 'bold' }}>
-                      {u.name?.charAt(0) || '?'}
+                    <>Run this query to find the earliest preserved tweet.</>
+                  )}
+                </div>
+                <div className="tweet-actions">
+                  {firstTweet.status === 'idle' || firstTweet.status === 'error' ? (
+                    <div className="action" onClick={() => runTweet(false)}><Play size={18} /><span>Run query</span></div>
+                  ) : (
+                    <div className="action" style={{ color: 'var(--accent)' }}><CheckCircle2 size={18} /><span>Completed</span></div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* 100 Likes */}
+            <div className="tweet">
+              {activeUserAvatar ? <img src={activeUserAvatar} className="av" /> : <div className="av"></div>}
+              <div className="tweet-body">
+                <div className="tweet-head">
+                  <span className="name">{activeUser}</span>
+                  <span className="badge gold">✓</span>
+                  <span className="handle">@{activeUser}</span>
+                  <span className="dot">·</span>
+                  <span className="time">{popularTweet.status === 'done' && popularTweet.data ? new Date(popularTweet.data.createdAt).toLocaleDateString() : 'Pending'}</span>
+                </div>
+                <div className="tweet-tag" style={{ color: popularTweet.status === 'done' ? 'var(--accent)' : 'var(--muted)' }}>FIRST TO 100 LIKES</div>
+                <div className="tweet-text" style={{ color: popularTweet.status === 'done' ? 'var(--text)' : 'var(--muted)', whiteSpace: 'pre-wrap' }}>
+                  {popularTweet.status === 'done' && popularTweet.data ? (
+                    <>"{popularTweet.data.text}"</>
+                  ) : popularTweet.status === 'loading' ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : popularTweet.status === 'error' ? (
+                    <>Error: {popularTweet.error}</>
+                  ) : (
+                    <>Run this query to find the first tweet that hit 100+ likes.</>
+                  )}
+                </div>
+                <div className="tweet-actions">
+                  {popularTweet.status === 'idle' || popularTweet.status === 'error' ? (
+                    <div className="action" onClick={() => runTweet(true)}><Play size={18} /><span>Run query</span></div>
+                  ) : (
+                    <div className="action heart-active"><svg viewBox="0 0 24 24"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.8 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg><span>{popularTweet.data?.likeCount || 100}</span></div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Mentions */}
+            <div className="tweet">
+              {activeUserAvatar ? <img src={activeUserAvatar} className="av" /> : <div className="av"></div>}
+              <div className="tweet-body">
+                <div className="tweet-head">
+                  <span className="name">{activeUser}</span>
+                  <span className="badge outline">?</span>
+                  <span className="handle">@{activeUser}</span>
+                  <span className="dot">·</span>
+                  <span className="time">{mentions.status === 'done' ? 'Found' : 'Pending'}</span>
+                </div>
+                <div className="tweet-tag" style={{ color: mentions.status === 'done' ? 'var(--accent)' : 'var(--muted)' }}>TOP TAGGER</div>
+                <div className="tweet-text" style={{ color: mentions.status === 'done' ? 'var(--text)' : 'var(--muted)' }}>
+                  {mentions.status === 'done' && mentions.data && mentions.data[0] ? (
+                    <>The account that tags @{activeUser} the most is <strong>@{mentions.data[0].user.username}</strong> ({mentions.data[0].count} times).</>
+                  ) : mentions.status === 'loading' ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : mentions.status === 'error' ? (
+                    <>Error: {mentions.error}</>
+                  ) : (
+                    <>Run this query to find out who tags this account the most.</>
+                  )}
+                </div>
+                <div className="tweet-actions">
+                  {mentions.status === 'idle' || mentions.status === 'error' ? (
+                    <div className="action" onClick={runMentions}><Play size={18} /><span>Run query</span></div>
+                  ) : (
+                    <div className="action" style={{ color: 'var(--accent)' }}><CheckCircle2 size={18} /><span>Completed</span></div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* RIGHT SIDEBAR */}
+      <div className="side">
+        <div className="side-search">
+          <Search size={16} /> Search another handle
+        </div>
+
+        {activeUser && (
+          <>
+            <div className="widget">
+              <h3>Your queries</h3>
+              <div className="qitem" onClick={() => toggle('followings')}>
+                <div><div className="ql">Oldest follow</div><div className="qm">{followings.status}</div></div>
+                <div className={`toggle ${toggles.followings ? 'on' : ''}`}></div>
+              </div>
+              <div className="qitem" onClick={() => toggle('firstTweet')}>
+                <div><div className="ql">First post</div><div className="qm">{firstTweet.status}</div></div>
+                <div className={`toggle ${toggles.firstTweet ? 'on' : ''}`}></div>
+              </div>
+              <div className="qitem" onClick={() => toggle('popularTweet')}>
+                <div><div className="ql">First 100 likes</div><div className="qm">{popularTweet.status}</div></div>
+                <div className={`toggle ${toggles.popularTweet ? 'on' : ''}`}></div>
+              </div>
+              <div className="qitem" onClick={() => toggle('mentions')}>
+                <div><div className="ql">Top tagger</div><div className="qm">{mentions.status}</div></div>
+                <div className={`toggle ${toggles.mentions ? 'on' : ''}`}></div>
+              </div>
+              
+              <button className="see-more" onClick={runAll}>Run all queries</button>
+            </div>
+
+            <div className="widget">
+              <h3 style={{ fontSize: '16px' }}>Share card preview</h3>
+              <div className="poster" ref={posterRef} style={{ background: 'var(--bg-3)' }}>
+                <div className="poster-top"><span>X Archive</span><span>@{activeUser}</span></div>
+                <div className="poster-grid">
+                  {toggles.followings && (
+                    <div className="poster-item">
+                      <div className="k">Oldest follow</div>
+                      <div className="v">{followings.status === 'done' && followings.data ? `@${followings.data[0].username}` : '-'}</div>
                     </div>
                   )}
-                  
-                  <div style={{ flex: 1 }}>
-                    <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '0.25rem' }}>{u.name}</h3>
-                    <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>@{u.username}</p>
-                  </div>
-                  
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(29, 161, 242, 0.1)', color: 'var(--primary)', padding: '0.5rem 1rem', borderRadius: '20px', fontWeight: 'bold' }}>
-                    {mention.count} згадок
+                  {toggles.firstTweet && (
+                    <div className="poster-item">
+                      <div className="k">First post</div>
+                      <div className="v">{firstTweet.status === 'done' && firstTweet.data ? new Date(firstTweet.data.createdAt).toLocaleDateString() : '-'}</div>
+                    </div>
+                  )}
+                  {toggles.popularTweet && (
+                    <div className="poster-item">
+                      <div className="k">100 likes</div>
+                      <div className="v">{popularTweet.status === 'done' && popularTweet.data ? new Date(popularTweet.data.createdAt).toLocaleDateString() : '-'}</div>
+                    </div>
+                  )}
+                  {toggles.mentions && (
+                    <div className="poster-item">
+                      <div className="k">Top tagger</div>
+                      <div className="v">{mentions.status === 'done' && mentions.data ? `@${mentions.data[0].user.username}` : '-'}</div>
+                    </div>
+                  )}
+                  <div className="poster-item">
+                    <div className="k">Findings</div>
+                    <div className="v">{numFound} of 4</div>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      <style>
-        {`
-          @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-          }
-        `}
-      </style>
+              </div>
+              <button className="share-btn" onClick={downloadCard} disabled={isDownloading}>
+                {isDownloading ? 'Processing...' : 'Combine & download'}
+              </button>
+              <div className="foot-note">Includes only toggled-on findings</div>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 };
