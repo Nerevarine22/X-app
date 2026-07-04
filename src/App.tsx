@@ -808,7 +808,14 @@ const App: React.FC = () => {
             
             {/* Options Toggles */}
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '24px' }}>
-              {Object.keys(cardOptions).map((k) => (
+              {Object.keys(cardOptions).filter(k => {
+                if (k === 'followings') return followings.status === 'done';
+                if (k === 'firstTweet') return firstTweet.status === 'done';
+                if (k === 'popularTweet') return popularTweet.status === 'done';
+                if (k === 'mentions') return mentions.status === 'done';
+                if (k === 'sharedFollows') return sharedFollows.status === 'done';
+                return false;
+              }).map((k) => (
                 <label key={k} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', cursor: 'pointer', background: 'var(--bg-3)', padding: '6px 12px', borderRadius: '100px', border: `1px solid ${cardOptions[k as keyof typeof cardOptions] ? 'var(--accent)' : 'var(--border)'}` }}>
                   <input type="checkbox" checked={cardOptions[k as keyof typeof cardOptions]} onChange={(e) => setCardOptions({...cardOptions, [k]: e.target.checked})} style={{ display: 'none' }} />
                   {k === 'followings' ? 'Oldest Follow' : k === 'firstTweet' ? 'First Post' : k === 'popularTweet' ? '100 Likes' : k === 'mentions' ? 'Top Tagger' : 'Shared Follows'}
