@@ -19,6 +19,7 @@ interface Tweet {
   viewCount: number;
   likeCount: number;
   retweetCount: number;
+  media?: { type: string; url: string; previewUrl?: string; videoUrl?: string }[];
 }
 
 type QueryStatus = 'idle' | 'loading' | 'done' | 'error';
@@ -212,6 +213,14 @@ const App: React.FC = () => {
             else hasNext = false;
           }
           const oldest = allT[allT.length - 1];
+          let mediaData = oldest.media || (oldest.extendedEntities && oldest.extendedEntities.media) || (oldest.extended_entities && oldest.extended_entities.media) || (oldest.entities && oldest.entities.media) || [];
+          let mappedMedia = mediaData.map((m: any) => ({
+             type: m.type || m.media_type,
+             url: m.media_url_https || m.url || m.mediaUrl,
+             previewUrl: m.media_url_https || m.preview_image_url || m.url,
+             videoUrl: (m.video_info?.variants?.find((v:any) => v.content_type === 'video/mp4')?.url) || m.videoUrl
+          }));
+
           const finalTweet: Tweet = {
             id: oldest.id || oldest.tweet_id || oldest.rest_id,
             text: oldest.text || oldest.full_text,
@@ -219,6 +228,7 @@ const App: React.FC = () => {
             viewCount: oldest.viewCount || oldest.views || 0,
             likeCount: oldest.likeCount || oldest.favorite_count || 0,
             retweetCount: oldest.retweetCount || oldest.retweet_count || 0,
+            media: mappedMedia.length > 0 ? mappedMedia : undefined
           };
           setter({ status: 'done', data: finalTweet });
           await saveTweetToFirebaseCache(cleanUsername, type, { tweet: finalTweet, author: authorData });
@@ -483,7 +493,20 @@ const App: React.FC = () => {
                 <div className="tweet-tag" style={{ color: firstTweet.status === 'done' ? 'var(--accent)' : 'var(--muted)' }}>FIRST POST</div>
                 <div className="tweet-text" style={{ color: firstTweet.status === 'done' ? 'var(--text)' : 'var(--muted)', whiteSpace: 'pre-wrap' }}>
                   {firstTweet.status === 'done' && firstTweet.data ? (
-                    <>"{firstTweet.data.text}"</>
+                    <a href={`https://x.com/${activeUser}/status/${firstTweet.data.id}`} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', color: 'inherit', display: 'block', marginTop: '4px' }}>
+                      <div style={{ marginBottom: firstTweet.data.media ? '12px' : '0' }}>{firstTweet.data.text}</div>
+                      {firstTweet.data.media && (
+                        <div style={{ display: 'grid', gap: '8px', gridTemplateColumns: firstTweet.data.media.length > 1 ? '1fr 1fr' : '1fr', marginTop: '10px' }}>
+                          {firstTweet.data.media.map((m, i) => (
+                            m.type === 'video' || m.type === 'animated_gif' || m.videoUrl ? (
+                              <video key={i} src={m.videoUrl} poster={m.previewUrl} controls style={{ width: '100%', borderRadius: '12px', border: '1px solid var(--border)' }} onClick={e => e.preventDefault()} />
+                            ) : (
+                              <img key={i} src={m.url || m.previewUrl} style={{ width: '100%', borderRadius: '12px', border: '1px solid var(--border)' }} />
+                            )
+                          ))}
+                        </div>
+                      )}
+                    </a>
                   ) : firstTweet.status === 'loading' ? (
                     <Loader2 size={16} className="animate-spin" />
                   ) : firstTweet.status === 'error' ? (
@@ -518,7 +541,20 @@ const App: React.FC = () => {
                 <div className="tweet-tag" style={{ color: popularTweet.status === 'done' ? 'var(--accent)' : 'var(--muted)' }}>FIRST TO 100 LIKES</div>
                 <div className="tweet-text" style={{ color: popularTweet.status === 'done' ? 'var(--text)' : 'var(--muted)', whiteSpace: 'pre-wrap' }}>
                   {popularTweet.status === 'done' && popularTweet.data ? (
-                    <>"{popularTweet.data.text}"</>
+                    <a href={`https://x.com/${activeUser}/status/${popularTweet.data.id}`} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', color: 'inherit', display: 'block', marginTop: '4px' }}>
+                      <div style={{ marginBottom: popularTweet.data.media ? '12px' : '0' }}>{popularTweet.data.text}</div>
+                      {popularTweet.data.media && (
+                        <div style={{ display: 'grid', gap: '8px', gridTemplateColumns: popularTweet.data.media.length > 1 ? '1fr 1fr' : '1fr', marginTop: '10px' }}>
+                          {popularTweet.data.media.map((m, i) => (
+                            m.type === 'video' || m.type === 'animated_gif' || m.videoUrl ? (
+                              <video key={i} src={m.videoUrl} poster={m.previewUrl} controls style={{ width: '100%', borderRadius: '12px', border: '1px solid var(--border)' }} onClick={e => e.preventDefault()} />
+                            ) : (
+                              <img key={i} src={m.url || m.previewUrl} style={{ width: '100%', borderRadius: '12px', border: '1px solid var(--border)' }} />
+                            )
+                          ))}
+                        </div>
+                      )}
+                    </a>
                   ) : popularTweet.status === 'loading' ? (
                     <Loader2 size={16} className="animate-spin" />
                   ) : popularTweet.status === 'error' ? (
