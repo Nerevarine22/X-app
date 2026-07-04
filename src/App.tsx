@@ -80,7 +80,7 @@ const App: React.FC = () => {
       try {
         // 1. Check user info first to get followingCount
         setProgressText('Перевіряю кількість підписок...');
-        const userCheckResponse = await fetch(`https://api.twitterapi.io/twitter/user/info?userName=${encodeURIComponent(cleanUsername)}`, {
+        const userCheckResponse = await fetch(`/api/twitter/user/info?userName=${encodeURIComponent(cleanUsername)}`, {
           headers: {
             'x-api-key': apiKey
           }
@@ -123,7 +123,7 @@ const App: React.FC = () => {
         pageCount++;
         setProgressText(`Завантаження сторінки ${pageCount}... (Отримано: ${allFollowings.length})`);
         
-        let url = `https://api.twitterapi.io/twitter/user/followings?userName=${encodeURIComponent(cleanUsername)}&pageSize=200`;
+        let url = `/api/twitter/user/followings?userName=${encodeURIComponent(cleanUsername)}&pageSize=200`;
         if (cursor) {
           url += `&cursor=${encodeURIComponent(cursor)}`;
         }
