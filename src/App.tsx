@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Search, Loader2, Users, ArrowRight, MessageCircle } from 'lucide-react';
-import { getCachedFollowingsFromFirebase, saveFollowingsToFirebaseCache, findSimilarUsersInFirebase, SimilarUser } from './firebase';
+import { getCachedFollowingsFromFirebase, saveFollowingsToFirebaseCache, findSimilarUsersInFirebase } from './firebase';
+import type { SimilarUser } from './firebase';
 
 interface TwitterUser {
   userId: string;
@@ -342,6 +343,36 @@ const App: React.FC = () => {
                 </div>
                 
                 <a href={`https://twitter.com/${user.username}`} target="_blank" rel="noopener noreferrer" style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', transition: 'all 0.2s' }} onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--primary)'; e.currentTarget.style.color = 'white'; }} onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = 'var(--text-muted)'; }}>
+                  <ArrowRight size={20} />
+                </a>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {similarUsers.length > 0 && (
+        <div className="mt-8 delay-300" style={{ animation: 'fadeIn 0.4s ease-out 300ms forwards', opacity: 0, marginTop: '2.5rem' }}>
+          <h2 style={{ fontSize: '1.25rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Users size={20} color="var(--primary)" />
+            Схожі профілі з бази
+          </h2>
+          <p style={{ color: 'var(--text-muted)', marginBottom: '1rem', fontSize: '0.9rem' }}>
+            Ці відскановані раніше користувачі мають з вами найбільше спільних підписок:
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            {similarUsers.map((su, index) => (
+              <div key={su.username} className="glass-panel" style={{ padding: '1.5rem', display: 'flex', alignItems: 'center', gap: '1.5rem', transition: 'transform 0.2s' }}>
+                <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'linear-gradient(45deg, var(--primary), #8a2be2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: 'white', fontSize: '1rem' }}>
+                  {index + 1}
+                </div>
+                
+                <div style={{ flex: 1 }}>
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '0.25rem', color: 'var(--primary)' }}>@{su.username}</h3>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>{su.commonCount} спільних підписок</p>
+                </div>
+                
+                <a href={`https://twitter.com/${su.username}`} target="_blank" rel="noopener noreferrer" style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', transition: 'all 0.2s' }} onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--primary)'; e.currentTarget.style.color = 'white'; }} onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = 'var(--text-muted)'; }}>
                   <ArrowRight size={20} />
                 </a>
               </div>

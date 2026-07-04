@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getFirestore, collection, doc, getDoc, setDoc } from "firebase/firestore";
+import { getFirestore, collection, doc, getDoc, setDoc, getDocs } from "firebase/firestore";
 
 // Your web app's Firebase configuration
 // REPLACE THIS WITH YOUR FIREBASE CONFIG
@@ -60,8 +60,6 @@ export const saveFollowingsToFirebaseCache = async (username: string, followings
     console.error("Error writing to Firebase cache:", error);
   }
 };
-
-import { collection, getDocs } from "firebase/firestore";
 
 export interface SimilarUser {
   username: string;
