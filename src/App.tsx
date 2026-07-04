@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Loader2, Users, ArrowRight, Twitter } from 'lucide-react';
+import { Search, Loader2, Users, ArrowRight, MessageCircle } from 'lucide-react';
 
 interface TwitterUser {
   id: string;
@@ -71,7 +71,7 @@ const App: React.FC = () => {
     <div className="container animate-fade-in">
       <header style={{ textAlign: 'center', marginBottom: '3rem' }}>
         <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '64px', height: '64px', borderRadius: '20px', background: 'rgba(29, 161, 242, 0.1)', color: 'var(--primary)', marginBottom: '1.5rem' }}>
-          <Twitter size={32} />
+          <MessageCircle size={32} />
         </div>
         <h1 style={{ fontSize: '2.5rem', fontWeight: 700, marginBottom: '1rem', letterSpacing: '-0.02em' }}>
           Twitter <span style={{ color: 'var(--primary)' }}>First Follows</span>
