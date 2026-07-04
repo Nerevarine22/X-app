@@ -41,7 +41,7 @@ const App: React.FC = () => {
   const [mentions, setMentions] = useState<QueryState<MentionUser[]>>({ status: 'idle', data: null });
 
   // Toggles for card
-  const [toggles, setToggles] = useState({ followings: true, firstTweet: true, popularTweet: true, mentions: false });
+  const [toggles, setToggles] = useState({ followings: true, firstTweet: false, popularTweet: false, mentions: false });
 
   const posterRef = useRef<HTMLDivElement>(null);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -368,7 +368,9 @@ const App: React.FC = () => {
               type="text" 
               value={searchInput} 
               onChange={e => setSearchInput(e.target.value)} 
-              placeholder="Look up a handle... (@username)" 
+              placeholder="Look up a handle... (@username)"
+              autoComplete="off"
+              spellCheck="false"
             />
             <div className="compose-actions">
               <button type="submit" className="post-btn" disabled={!searchInput}>Search</button>
