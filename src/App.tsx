@@ -49,14 +49,21 @@ const App: React.FC = () => {
         }
       });
 
-      if (!response.ok) {
-        throw new Error(`API Error: ${response.status}`);
+      let data;
+      try {
+        data = await response.json();
+      } catch (e) {
+        if (!response.ok) {
+          throw new Error(`API Error: ${response.status}`);
+        }
       }
 
-      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(`API Error: ${data?.msg || data?.code || response.status}`);
+      }
       
       // TwexAPI returns custom error codes in JSON even on some 200s or on 403s
-      if (data.code && data.code !== 200) {
+      if (data && data.code && data.code !== 200) {
         throw new Error(`API Error: ${data.msg || data.code}`);
       }
       
