@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { Search, Loader2, Users, ArrowRight, MessageCircle, FileText, TrendingUp, Megaphone } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { Search, Loader2, Users, ArrowRight, MessageCircle, FileText, TrendingUp, Megaphone, Download } from 'lucide-react';
+import { toPng } from 'html-to-image';
 import { getCachedFollowingsFromFirebase, saveFollowingsToFirebaseCache, findSimilarUsersInFirebase, getCachedTweetFromFirebase, saveTweetToFirebaseCache, getCachedMentionsFromFirebase, saveMentionsToFirebaseCache } from './firebase';
 import type { SimilarUser, MentionUser } from './firebase';
 
@@ -32,6 +33,31 @@ const App: React.FC = () => {
 
   // States for followings mode
   const [followings, setFollowings] = useState<TwitterUser[]>([]);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  const downloadCard = async () => {
+    if (!cardRef.current) return;
+    try {
+      setIsDownloading(true);
+      const dataUrl = await toPng(cardRef.current, { 
+        quality: 1, 
+        pixelRatio: 2,
+        backgroundColor: '#0a0a0f', // Match the app background
+        style: { transform: 'scale(1)' }
+      });
+      const link = document.createElement('a');
+      link.download = `first-subscriptions-${username || 'card'}.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch (err) {
+      console.error('Error generating image', err);
+      alert('Не вдалося згенерувати зображення. Можливо, проблема з CORS для картинок.');
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
   const [similarUsers, setSimilarUsers] = useState<SimilarUser[]>([]);
 
   // States for tweet modes
@@ -499,35 +525,95 @@ const App: React.FC = () => {
 
       {mode === 'followings' && followings.length > 0 && (
         <div className="delay-200" style={{ animation: 'fadeIn 0.4s ease-out 200ms forwards' }}>
-          <h2 style={{ fontSize: '1.25rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Users size={20} color="var(--primary)" /> 
-            Найстаріші Підписки
-          </h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {followings.map((user, index) => (
-              <div key={user.userId} className="glass-panel" style={{ padding: '1.5rem', display: 'flex', alignItems: 'center', gap: '1.5rem', cursor: 'pointer' }}>
-                <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-                  {index + 1}
-                </div>
-                
-                {user.profileImageUrlHttps ? (
-                  <img src={user.profileImageUrlHttps} alt={user.name} style={{ width: '56px', height: '56px', borderRadius: '50%', objectFit: 'cover' }} />
-                ) : (
-                  <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'linear-gradient(45deg, var(--primary), #8a2be2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', fontWeight: 'bold' }}>
-                    {user.name.charAt(0)}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+            <h2 style={{ fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+              <Users size={20} color="var(--primary)" /> 
+              Найстаріші Підписки
+            </h2>
+            <button 
+              onClick={downloadCard}
+              disabled={isDownloading}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '0.5rem',
+                background: 'rgba(29, 161, 242, 0.1)', color: 'var(--primary)',
+                border: '1px solid rgba(29, 161, 242, 0.2)', borderRadius: '8px',
+                padding: '0.5rem 1rem', cursor: isDownloading ? 'not-allowed' : 'pointer',
+                fontWeight: 600, fontSize: '0.9rem', transition: 'all 0.2s', opacity: isDownloading ? 0.7 : 1
+              }}
+            >
+              {isDownloading ? <Loader2 size={16} className="animate-spin" style={{ animation: 'spin 1s linear infinite' }} /> : <Download size={16} />}
+              {isDownloading ? 'Збереження...' : 'Завантажити як фото'}
+            </button>
+          </div>
+          
+          <div 
+            ref={cardRef}
+            className="glass-panel" 
+            style={{ 
+              padding: '2rem', 
+              background: 'linear-gradient(135deg, rgba(20,20,30,0.95), rgba(10,10,15,0.95))', 
+              borderRadius: '24px', 
+              border: '1px solid rgba(255,255,255,0.1)',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.4)',
+              position: 'relative',
+              overflow: 'hidden'
+            }}
+          >
+            {/* Background decoration */}
+            <div style={{ position: 'absolute', top: '-50%', right: '-20%', width: '300px', height: '300px', background: 'var(--primary)', filter: 'blur(100px)', opacity: 0.1, borderRadius: '50%', pointerEvents: 'none' }}></div>
+            <div style={{ position: 'absolute', bottom: '-20%', left: '-20%', width: '250px', height: '250px', background: '#8a2be2', filter: 'blur(100px)', opacity: 0.1, borderRadius: '50%', pointerEvents: 'none' }}></div>
+            
+            <div style={{ textAlign: 'center', marginBottom: '2rem', position: 'relative', zIndex: 1 }}>
+              <h3 style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0 0 0.5rem 0', color: 'white' }}>Топ 5 перших підписок</h3>
+              <p style={{ color: 'var(--primary)', margin: 0, fontWeight: 500, fontSize: '1.1rem' }}>@{username}</p>
+            </div>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', position: 'relative', zIndex: 1 }}>
+              {followings.map((user, index) => (
+                <div key={user.userId} style={{ 
+                  padding: '1rem 1.5rem', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '1.5rem', 
+                  background: 'rgba(255,255,255,0.03)',
+                  borderRadius: '16px',
+                  border: '1px solid rgba(255,255,255,0.05)',
+                  backdropFilter: 'blur(10px)'
+                }}>
+                  <div style={{ 
+                    width: '36px', height: '36px', borderRadius: '50%', 
+                    background: index === 0 ? 'linear-gradient(135deg, #FFD700, #FDB931)' : index === 1 ? 'linear-gradient(135deg, #E3E3E3, #D1D1D1)' : index === 2 ? 'linear-gradient(135deg, #CD7F32, #B87333)' : 'rgba(255,255,255,0.1)', 
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                    fontWeight: 'bold', color: index < 3 ? '#000' : 'var(--text-muted)', fontSize: '1rem',
+                    boxShadow: index < 3 ? '0 4px 10px rgba(0,0,0,0.3)' : 'none'
+                  }}>
+                    {index + 1}
                   </div>
-                )}
-                
-                <div style={{ flex: 1 }}>
-                  <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '0.25rem' }}>{user.name}</h3>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>@{user.username}</p>
+                  
+                  {user.profileImageUrlHttps ? (
+                    <img src={user.profileImageUrlHttps} crossOrigin="anonymous" alt={user.name} style={{ width: '48px', height: '48px', borderRadius: '50%', objectFit: 'cover', border: '2px solid rgba(255,255,255,0.1)' }} />
+                  ) : (
+                    <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'linear-gradient(45deg, var(--primary), #8a2be2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', fontWeight: 'bold' }}>
+                      {user.name.charAt(0)}
+                    </div>
+                  )}
+                  
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <h4 style={{ fontSize: '1.1rem', fontWeight: 600, margin: '0 0 0.25rem 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: 'white' }}>{user.name}</h4>
+                    <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: '0.9rem' }}>@{user.username}</p>
+                  </div>
+                  
+                  {/* Keep the original twitter link but hide it when generating image (html-to-image handles it visually anyway but good for UI) */}
+                  <a href={`https://twitter.com/${user.username}`} target="_blank" rel="noopener noreferrer" style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', transition: 'all 0.2s' }}>
+                    <ArrowRight size={16} />
+                  </a>
                 </div>
-                
-                <a href={`https://twitter.com/${user.username}`} target="_blank" rel="noopener noreferrer" style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', transition: 'all 0.2s' }}>
-                  <ArrowRight size={20} />
-                </a>
-              </div>
-            ))}
+              ))}
+            </div>
+            
+            <div style={{ marginTop: '2rem', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', color: 'rgba(255,255,255,0.4)', fontSize: '0.85rem', position: 'relative', zIndex: 1 }}>
+              <MessageCircle size={14} /> Згенеровано в Twitter Explorer
+            </div>
           </div>
         </div>
       )}
