@@ -34,12 +34,14 @@ const App: React.FC = () => {
       const apiKey = import.meta.env.VITE_TWEXAPI_KEY;
       
       if (!apiKey) {
-        throw new Error('API ключ VITE_TWEXAPI_KEY не знайдено в .env');
+        throw new Error('API key VITE_TWEXAPI_KEY is not defined in .env');
       }
 
-      // First, get the user ID for the username if TwexAPI requires ID
-      // If TwexAPI allows passing username directly for following, you can use that directly.
-      // We will assume a direct following endpoint using username for this example:
+      // If they really put http://localhost... as the key, let's warn them nicely
+      if (apiKey.includes('localhost')) {
+        throw new Error('You pasted "http://localhost:5173/" instead of your TwexAPI key in .env. Please update .env with your real key.');
+      }
+
       const response = await fetch(`https://api.twexapi.io/v1/users/following?username=${encodeURIComponent(cleanUsername)}`, {
         headers: {
           'Authorization': `Bearer ${apiKey}`,
@@ -48,26 +50,18 @@ const App: React.FC = () => {
       });
 
       if (!response.ok) {
-        throw new Error(`Помилка API: ${response.status} ${response.statusText}`);
+        throw new Error(`API Error: ${response.status} ${response.statusText}`);
       }
 
       const data = await response.json();
       
-      // TwexAPI likely returns a data array
       const allFollowings: TwitterUser[] = data.data || [];
       
-      // The user requested the 5 oldest followings (the very first people this user followed)
-      // Since Twitter APIs usually return the newest first, to get the oldest we might need to 
-      // paginate to the end, OR if the API returns them in chronological order, we take the first 5.
-      // We'll reverse them if they are newest-first, but here we just take the last 5 if the array is small
-      // or we just display the first 5 assuming they are the oldest. 
-      // *Usually*, a full list is needed to get the absolute oldest unless we paginate backwards.
-      // We will just take 5 for the UI demonstration.
-      
+      // Get the oldest 5
       setFollowings(allFollowings.slice(-5).reverse());
       
     } catch (err: any) {
-      setError(err.message || 'Сталася помилка при завантаженні даних');
+      setError(err.message || 'An error occurred while fetching data');
     } finally {
       setLoading(false);
     }
@@ -83,7 +77,7 @@ const App: React.FC = () => {
           Twitter <span style={{ color: 'var(--primary)' }}>First Follows</span>
         </h1>
         <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', maxWidth: '500px', margin: '0 auto', lineHeight: 1.6 }}>
-          Знайдіть 5 найстаріших підписок будь-якого користувача Twitter (X) за допомогою TwexAPI.
+          Find the 5 oldest followings of any Twitter (X) user using TwexAPI.
         </p>
       </header>
 
@@ -96,7 +90,7 @@ const App: React.FC = () => {
             type="text"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            placeholder="Введіть @username"
+            placeholder="Enter @username"
             style={{ 
               width: '100%', 
               padding: '1rem 1rem 1rem 3rem', 
@@ -130,14 +124,14 @@ const App: React.FC = () => {
             cursor: (loading || !username.trim()) ? 'not-allowed' : 'pointer'
           }}
         >
-          {loading ? <Loader2 size={20} style={{ animation: 'spin 1s linear infinite' }} /> : 'Знайти'}
+          {loading ? <Loader2 size={20} style={{ animation: 'spin 1s linear infinite' }} /> : 'Search'}
         </button>
       </form>
 
       {error && (
         <div className="glass-panel" style={{ padding: '1.5rem', borderLeft: '4px solid #ef4444', backgroundColor: 'rgba(239, 68, 68, 0.05)' }}>
           <h3 style={{ color: '#ef4444', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            Помилка
+            Error
           </h3>
           <p style={{ color: 'rgba(255,255,255,0.8)' }}>{error}</p>
         </div>
@@ -146,7 +140,7 @@ const App: React.FC = () => {
       {hasSearched && !loading && !error && followings.length === 0 && (
         <div className="glass-panel" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
           <Users size={48} style={{ opacity: 0.2, margin: '0 auto 1rem' }} />
-          <p>Підписок не знайдено або профіль закритий.</p>
+          <p>No followings found or profile is private.</p>
         </div>
       )}
 
@@ -154,7 +148,7 @@ const App: React.FC = () => {
         <div className="delay-200" style={{ animation: 'fadeIn 0.4s ease-out 200ms forwards', opacity: 0 }}>
           <h2 style={{ fontSize: '1.25rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <Users size={20} color="var(--primary)" /> 
-            Найстаріші підписки
+            Oldest Followings
           </h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             {followings.map((user, index) => (
