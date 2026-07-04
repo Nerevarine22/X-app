@@ -494,7 +494,7 @@ const App: React.FC = () => {
                 <div className="tweet-text" style={{ color: firstTweet.status === 'done' ? 'var(--text)' : 'var(--muted)', whiteSpace: 'pre-wrap' }}>
                   {firstTweet.status === 'done' && firstTweet.data ? (
                     <a href={`https://x.com/${activeUser}/status/${firstTweet.data.id}`} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', color: 'inherit', display: 'block', marginTop: '4px' }}>
-                      <div style={{ marginBottom: firstTweet.data.media ? '12px' : '0' }}>{firstTweet.data.text}</div>
+                      <div style={{ marginBottom: firstTweet.data.media ? '12px' : '0' }}>{firstTweet.data.text.replace(/https:\/\/t\.co\/\w+/g, '').trim()}</div>
                       {firstTweet.data.media && (
                         <div style={{ display: 'grid', gap: '8px', gridTemplateColumns: firstTweet.data.media.length > 1 ? '1fr 1fr' : '1fr', marginTop: '10px' }}>
                           {firstTweet.data.media.map((m, i) => (
@@ -542,7 +542,7 @@ const App: React.FC = () => {
                 <div className="tweet-text" style={{ color: popularTweet.status === 'done' ? 'var(--text)' : 'var(--muted)', whiteSpace: 'pre-wrap' }}>
                   {popularTweet.status === 'done' && popularTweet.data ? (
                     <a href={`https://x.com/${activeUser}/status/${popularTweet.data.id}`} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', color: 'inherit', display: 'block', marginTop: '4px' }}>
-                      <div style={{ marginBottom: popularTweet.data.media ? '12px' : '0' }}>{popularTweet.data.text}</div>
+                      <div style={{ marginBottom: popularTweet.data.media ? '12px' : '0' }}>{popularTweet.data.text.replace(/https:\/\/t\.co\/\w+/g, '').trim()}</div>
                       {popularTweet.data.media && (
                         <div style={{ display: 'grid', gap: '8px', gridTemplateColumns: popularTweet.data.media.length > 1 ? '1fr 1fr' : '1fr', marginTop: '10px' }}>
                           {popularTweet.data.media.map((m, i) => (
