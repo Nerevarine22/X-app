@@ -134,7 +134,7 @@ const App: React.FC = () => {
               userId,
               name: user.name || '',
               username: user.userName || user.username || user.screen_name || '',
-              profileImageUrlHttps: user.profilePicture || user.profileImageUrlHttps || ''
+              profileImageUrlHttps: user.profilePicture || user.profileImageUrlHttps || user.profile_image_url_https || user.avatar || ''
             });
           }
         }
