@@ -65,6 +65,12 @@ const App: React.FC = () => {
     setMentions({ status: 'idle', data: null });
     setActiveUserAvatar('');
 
+    // Auto-run selected toggle(s)
+    if (toggles.followings) runFollowings(clean);
+    if (toggles.firstTweet) runTweet(false, clean);
+    if (toggles.popularTweet) runTweet(true, clean);
+    if (toggles.mentions) runMentions(clean);
+
     // Fetch avatar just for UI
     try {
       const res = await fetch(`/api/twitter/user/info?userName=${clean}`, { headers: { 'X-API-Key': getApiKey() } });
@@ -75,11 +81,11 @@ const App: React.FC = () => {
   };
 
   // 1. Fetch Followings
-  const runFollowings = async () => {
-    if (!activeUser) return;
+  const runFollowings = async (usernameToFetch = activeUser) => {
+    if (!usernameToFetch) return;
     setFollowings({ status: 'loading', data: null });
     try {
-      const cleanUsername = activeUser;
+      const cleanUsername = usernameToFetch;
       const cacheKey = `twitter_first_follows_v2_${cleanUsername.toLowerCase()}`;
       const cachedData = localStorage.getItem(cacheKey);
       if (cachedData) {
@@ -144,13 +150,13 @@ const App: React.FC = () => {
   };
 
   // 2. Fetch Tweet (First or Popular)
-  const runTweet = async (isPopular: boolean) => {
-    if (!activeUser) return;
+  const runTweet = async (isPopular: boolean, usernameToFetch = activeUser) => {
+    if (!usernameToFetch) return;
     const setter = isPopular ? setPopularTweet : setFirstTweet;
     setter({ status: 'loading', data: null });
     try {
       const type = isPopular ? 'popular' : 'first';
-      const cleanUsername = activeUser;
+      const cleanUsername = usernameToFetch;
       
       const cached = await getCachedTweetFromFirebase(cleanUsername, type);
       if (cached) {
@@ -223,11 +229,11 @@ const App: React.FC = () => {
   };
 
   // 3. Fetch Mentions
-  const runMentions = async () => {
-    if (!activeUser) return;
+  const runMentions = async (usernameToFetch = activeUser) => {
+    if (!usernameToFetch) return;
     setMentions({ status: 'loading', data: null });
     try {
-      const cleanUsername = activeUser;
+      const cleanUsername = usernameToFetch;
       const cached = await getCachedMentionsFromFirebase(cleanUsername);
       if (cached) {
         setMentions({ status: 'done', data: cached });
@@ -296,7 +302,28 @@ const App: React.FC = () => {
     }
   };
 
-  const toggle = (key: keyof typeof toggles) => setToggles(p => ({ ...p, [key]: !p[key] }));
+  const toggle = (key: keyof typeof toggles) => {
+    setToggles(prev => {
+      if (prev[key]) return { ...prev, [key]: false }; // turn off
+
+      const newState = { ...prev };
+      const statuses = {
+        followings: followings.status,
+        firstTweet: firstTweet.status,
+        popularTweet: popularTweet.status,
+        mentions: mentions.status,
+      };
+
+      // Turn off other idle/loading/error switches
+      for (const k in newState) {
+        if (k !== key && statuses[k as keyof typeof statuses] !== 'done') {
+          newState[k as keyof typeof toggles] = false;
+        }
+      }
+      newState[key] = true;
+      return newState;
+    });
+  };
 
   const numFound = [followings.status, firstTweet.status, popularTweet.status, mentions.status].filter(s => s === 'done').length;
 
@@ -364,19 +391,34 @@ const App: React.FC = () => {
                 </div>
                 <div className="tweet-tag" style={{ color: followings.status === 'done' ? 'var(--accent)' : 'var(--muted)' }}>OLDEST FOLLOW</div>
                 <div className="tweet-text" style={{ color: followings.status === 'done' ? 'var(--text)' : 'var(--muted)' }}>
-                  {followings.status === 'done' && followings.data && followings.data[0] ? (
-                    <>First account ever followed: <strong>@{followings.data[0].username}</strong>.</>
+                  {followings.status === 'done' && followings.data && followings.data.length > 0 ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '10px' }}>
+                      {followings.data.map((u, i) => (
+                        <div key={u.userId} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(255,255,255,0.03)', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                          <div style={{ width: '20px', fontSize: '12px', color: 'var(--muted)', fontWeight: 'bold' }}>{i + 1}</div>
+                          {u.profileImageUrlHttps ? (
+                            <img src={u.profileImageUrlHttps} crossOrigin="anonymous" style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }} />
+                          ) : (
+                            <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>{u.name.charAt(0)}</div>
+                          )}
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontWeight: 'bold', fontSize: '14px', color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{u.name}</div>
+                            <div style={{ fontSize: '12.5px', color: 'var(--muted)' }}>@{u.username}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   ) : followings.status === 'loading' ? (
                     <Loader2 size={16} className="animate-spin" />
                   ) : followings.status === 'error' ? (
                     <>Error: {followings.error}</>
                   ) : (
-                    <>Run this query to find out the oldest followed account.</>
+                    <>Run this query to find out the 5 oldest followed accounts.</>
                   )}
                 </div>
                 <div className="tweet-actions">
                   {followings.status === 'idle' || followings.status === 'error' ? (
-                    <div className="action" onClick={runFollowings}><Play size={18} /><span>Run query</span></div>
+                    <div className="action" onClick={() => runFollowings(activeUser)}><Play size={18} /><span>Run query</span></div>
                   ) : (
                     <div className="action" style={{ color: 'var(--accent)' }}><CheckCircle2 size={18} /><span>Completed</span></div>
                   )}
@@ -492,72 +534,68 @@ const App: React.FC = () => {
           <Search size={16} /> Search another handle
         </div>
 
-        {activeUser && (
-          <>
-            <div className="widget">
-              <h3>Your queries</h3>
-              <div className="qitem" onClick={() => toggle('followings')}>
-                <div><div className="ql">Oldest follow</div><div className="qm">{followings.status}</div></div>
-                <div className={`toggle ${toggles.followings ? 'on' : ''}`}></div>
-              </div>
-              <div className="qitem" onClick={() => toggle('firstTweet')}>
-                <div><div className="ql">First post</div><div className="qm">{firstTweet.status}</div></div>
-                <div className={`toggle ${toggles.firstTweet ? 'on' : ''}`}></div>
-              </div>
-              <div className="qitem" onClick={() => toggle('popularTweet')}>
-                <div><div className="ql">First 100 likes</div><div className="qm">{popularTweet.status}</div></div>
-                <div className={`toggle ${toggles.popularTweet ? 'on' : ''}`}></div>
-              </div>
-              <div className="qitem" onClick={() => toggle('mentions')}>
-                <div><div className="ql">Top tagger</div><div className="qm">{mentions.status}</div></div>
-                <div className={`toggle ${toggles.mentions ? 'on' : ''}`}></div>
-              </div>
-              
-              <button className="see-more" onClick={runAll}>Run all queries</button>
-            </div>
+        <div className="widget">
+          <h3>Your queries</h3>
+          <div className="qitem" onClick={() => toggle('followings')}>
+            <div><div className="ql">Oldest follow</div><div className="qm">{followings.status}</div></div>
+            <div className={`toggle ${toggles.followings ? 'on' : ''}`}></div>
+          </div>
+          <div className="qitem" onClick={() => toggle('firstTweet')}>
+            <div><div className="ql">First post</div><div className="qm">{firstTweet.status}</div></div>
+            <div className={`toggle ${toggles.firstTweet ? 'on' : ''}`}></div>
+          </div>
+          <div className="qitem" onClick={() => toggle('popularTweet')}>
+            <div><div className="ql">First 100 likes</div><div className="qm">{popularTweet.status}</div></div>
+            <div className={`toggle ${toggles.popularTweet ? 'on' : ''}`}></div>
+          </div>
+          <div className="qitem" onClick={() => toggle('mentions')}>
+            <div><div className="ql">Top tagger</div><div className="qm">{mentions.status}</div></div>
+            <div className={`toggle ${toggles.mentions ? 'on' : ''}`}></div>
+          </div>
+          
+          <button className="see-more" onClick={runAll}>Run all queries</button>
+        </div>
 
-            <div className="widget">
-              <h3 style={{ fontSize: '16px' }}>Share card preview</h3>
-              <div className="poster" ref={posterRef} style={{ background: 'var(--bg-3)' }}>
-                <div className="poster-top"><span>X Archive</span><span>@{activeUser}</span></div>
-                <div className="poster-grid">
-                  {toggles.followings && (
-                    <div className="poster-item">
-                      <div className="k">Oldest follow</div>
-                      <div className="v">{followings.status === 'done' && followings.data ? `@${followings.data[0].username}` : '-'}</div>
-                    </div>
-                  )}
-                  {toggles.firstTweet && (
-                    <div className="poster-item">
-                      <div className="k">First post</div>
-                      <div className="v">{firstTweet.status === 'done' && firstTweet.data ? new Date(firstTweet.data.createdAt).toLocaleDateString() : '-'}</div>
-                    </div>
-                  )}
-                  {toggles.popularTweet && (
-                    <div className="poster-item">
-                      <div className="k">100 likes</div>
-                      <div className="v">{popularTweet.status === 'done' && popularTweet.data ? new Date(popularTweet.data.createdAt).toLocaleDateString() : '-'}</div>
-                    </div>
-                  )}
-                  {toggles.mentions && (
-                    <div className="poster-item">
-                      <div className="k">Top tagger</div>
-                      <div className="v">{mentions.status === 'done' && mentions.data ? `@${mentions.data[0].user.username}` : '-'}</div>
-                    </div>
-                  )}
-                  <div className="poster-item">
-                    <div className="k">Findings</div>
-                    <div className="v">{numFound} of 4</div>
-                  </div>
+        <div className="widget">
+          <h3 style={{ fontSize: '16px' }}>Share card preview</h3>
+          <div className="poster" ref={posterRef} style={{ background: 'var(--bg-3)' }}>
+            <div className="poster-top"><span>X Archive</span><span>@{activeUser || 'username'}</span></div>
+            <div className="poster-grid">
+              {toggles.followings && (
+                <div className="poster-item">
+                  <div className="k">Oldest follow</div>
+                  <div className="v">{followings.status === 'done' && followings.data ? `@${followings.data[0].username}` : '-'}</div>
                 </div>
+              )}
+              {toggles.firstTweet && (
+                <div className="poster-item">
+                  <div className="k">First post</div>
+                  <div className="v">{firstTweet.status === 'done' && firstTweet.data ? new Date(firstTweet.data.createdAt).toLocaleDateString() : '-'}</div>
+                </div>
+              )}
+              {toggles.popularTweet && (
+                <div className="poster-item">
+                  <div className="k">100 likes</div>
+                  <div className="v">{popularTweet.status === 'done' && popularTweet.data ? new Date(popularTweet.data.createdAt).toLocaleDateString() : '-'}</div>
+                </div>
+              )}
+              {toggles.mentions && (
+                <div className="poster-item">
+                  <div className="k">Top tagger</div>
+                  <div className="v">{mentions.status === 'done' && mentions.data ? `@${mentions.data[0].user.username}` : '-'}</div>
+                </div>
+              )}
+              <div className="poster-item">
+                <div className="k">Findings</div>
+                <div className="v">{numFound} of 4</div>
               </div>
-              <button className="share-btn" onClick={downloadCard} disabled={isDownloading}>
-                {isDownloading ? 'Processing...' : 'Combine & download'}
-              </button>
-              <div className="foot-note">Includes only toggled-on findings</div>
             </div>
-          </>
-        )}
+          </div>
+          <button className="share-btn" onClick={downloadCard} disabled={isDownloading || !activeUser}>
+            {isDownloading ? 'Processing...' : 'Combine & download'}
+          </button>
+          <div className="foot-note">Includes only toggled-on findings</div>
+        </div>
       </div>
     </div>
   );
