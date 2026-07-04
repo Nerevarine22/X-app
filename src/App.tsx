@@ -800,8 +800,8 @@ const App: React.FC = () => {
         </div>
 
         {activeUser && (
-          <div style={{ position: 'relative', width: '100%', height: '180px', overflow: 'hidden', borderRadius: '16px', marginBottom: '16px', border: '1px solid var(--border)', background: 'var(--bg-3)', cursor: 'pointer' }} onClick={() => setIsModalOpen(true)}>
-            <div className="export-card" style={{ transform: 'scale(0.35)', transformOrigin: 'top left', width: '285%', border: 'none', background: 'transparent' }}>
+          <div style={{ position: 'relative', width: '100%', height: '260px', overflow: 'hidden', borderRadius: '16px', marginBottom: '16px', border: '1px solid var(--border)', background: 'var(--bg-3)', cursor: 'pointer' }} onClick={() => setIsModalOpen(true)}>
+            <div className="export-card" style={{ transform: 'scale(0.65)', transformOrigin: 'top left', width: '153%', border: 'none', background: 'transparent' }}>
               {renderCard()}
             </div>
             <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, transparent, var(--bg))', pointerEvents: 'none' }} />
