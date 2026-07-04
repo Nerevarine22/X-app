@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Search, Loader2, Users, ArrowRight, MessageCircle } from 'lucide-react';
-import { getCachedFollowingsFromFirebase, saveFollowingsToFirebaseCache, findSimilarUsersInFirebase } from './firebase';
+import { Search, Loader2, Users, ArrowRight, MessageCircle, FileText, TrendingUp } from 'lucide-react';
+import { getCachedFollowingsFromFirebase, saveFollowingsToFirebaseCache, findSimilarUsersInFirebase, getCachedTweetFromFirebase, saveTweetToFirebaseCache } from './firebase';
 import type { SimilarUser } from './firebase';
 
 interface TwitterUser {
@@ -11,215 +11,275 @@ interface TwitterUser {
   description?: string;
 }
 
+interface Tweet {
+  id: string;
+  text: string;
+  createdAt: string;
+  viewCount: number;
+  likeCount: number;
+  retweetCount: number;
+}
+
+type Mode = 'followings' | 'first_tweet' | 'popular_tweet';
+
 const App: React.FC = () => {
+  const [mode, setMode] = useState<Mode>('followings');
   const [username, setUsername] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [followings, setFollowings] = useState<TwitterUser[]>([]);
-  const [similarUsers, setSimilarUsers] = useState<SimilarUser[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
-
   const [progressText, setProgressText] = useState('');
 
-  const fetchFollowings = async (e: React.FormEvent) => {
+  // States for followings mode
+  const [followings, setFollowings] = useState<TwitterUser[]>([]);
+  const [similarUsers, setSimilarUsers] = useState<SimilarUser[]>([]);
+
+  // States for tweet modes
+  const [foundTweet, setFoundTweet] = useState<Tweet | null>(null);
+  const [author, setAuthor] = useState<TwitterUser | null>(null);
+
+  const getApiKey = () => {
+    const apiKey = import.meta.env.VITE_TWITTERAPI_IO_KEY || import.meta.env.VITE_TWEXAPI_KEY;
+    if (!apiKey) throw new Error('API key is not defined in .env');
+    if (apiKey.includes('localhost')) throw new Error('Please update .env with your real TwitterAPI.io key.');
+    return apiKey;
+  };
+
+  const fetchFollowings = async (cleanUsername: string) => {
+    setFollowings([]);
+    setSimilarUsers([]);
+    setProgressText('Підключаюся до TwitterAPI.io...');
+
+    const cacheKey = `twitter_first_follows_v2_${cleanUsername.toLowerCase()}`;
+    const cachedData = localStorage.getItem(cacheKey);
+    if (cachedData) {
+      try {
+        const parsedCache = JSON.parse(cachedData);
+        if (parsedCache && parsedCache.length > 0) {
+          setProgressText('Завантажено з локального кешу ⚡');
+          setFollowings(parsedCache);
+          setLoading(false);
+          return;
+        }
+      } catch(e) {}
+    }
+
+    setProgressText('Перевіряю глобальний кеш (Firebase)...');
+    const firebaseCache = await getCachedFollowingsFromFirebase(cleanUsername);
+    if (firebaseCache && firebaseCache.followings && firebaseCache.followings.length > 0) {
+      setProgressText('Завантажено з глобального кешу 🔥. Шукаю збіги...');
+      setFollowings(firebaseCache.followings);
+      try { localStorage.setItem(cacheKey, JSON.stringify(firebaseCache.followings)); } catch (e) {}
+      
+      const usernamesSet = new Set(firebaseCache.allFollowingsUsernames || []);
+      if (usernamesSet.size > 0) {
+        const similar = await findSimilarUsersInFirebase(cleanUsername, usernamesSet as Set<string>);
+        setSimilarUsers(similar);
+      }
+      return;
+    }
+
+    setProgressText('Перевіряю існування профілю...');
+    const userCheckResponse = await fetch(`https://api.twitterapi.io/twitter/user/info?userName=${cleanUsername}`, {
+      headers: { 'X-API-Key': getApiKey() }
+    });
+    
+    if (userCheckResponse.ok) {
+      const userData = await userCheckResponse.json();
+      if (userData.user?.friendsCount > 3000) {
+        throw new Error(`User has ${userData.user.friendsCount} followings. Limit is 3000 to save API credits.`);
+      }
+    }
+
+    setProgressText('Починаю завантаження списку...');
+    await new Promise(resolve => setTimeout(resolve, 200));
+
+    const allFollowings: TwitterUser[] = [];
+    const seenUserIds = new Set();
+    let cursor = '';
+    let hasNextPage = true;
+    let pageCount = 0;
+
+    while (hasNextPage) {
+      pageCount++;
+      setProgressText(`Завантаження сторінки ${pageCount}... Отримано ${allFollowings.length}`);
+
+      let url = `https://api.twitterapi.io/twitter/user/followings?userName=${cleanUsername}`;
+      if (cursor) url += `&cursor=${encodeURIComponent(cursor)}`;
+
+      const response = await fetch(url, { headers: { 'X-API-Key': getApiKey() } });
+      const data = await response.json();
+
+      if (!response.ok || (data.code !== 0 && data.status !== 'success' && data.code !== 200)) {
+        throw new Error(`API Error: ${data?.msg || data?.message || 'Unknown error'}`);
+      }
+
+      const items = data.followings || data.users || data.data || [];
+      for (const user of items) {
+        const userId = user.id || user.userId || user.user_id;
+        if (userId && !seenUserIds.has(userId)) {
+          seenUserIds.add(userId);
+          allFollowings.push({
+            userId,
+            name: user.name || '',
+            username: user.userName || user.username || user.screen_name || '',
+            profileImageUrlHttps: user.profilePicture || user.profileImageUrlHttps || user.profile_image_url_https || user.profile_image_url || '',
+            description: user.description || ''
+          });
+        }
+      }
+
+      hasNextPage = data.has_next_page === true || data.hasNextPage === true;
+      cursor = data.next_cursor || data.nextCursor;
+      if (!hasNextPage || !cursor) break;
+      await new Promise(resolve => setTimeout(resolve, 200));
+    }
+    
+    setProgressText(`Завершено! Отримано ${allFollowings.length} підписок.`);
+    const oldestFollowings = allFollowings.slice(-5).reverse();
+    setFollowings(oldestFollowings);
+    
+    try { localStorage.setItem(cacheKey, JSON.stringify(oldestFollowings)); } catch(e) {}
+
+    const allUsernames = allFollowings.map(u => u.username);
+    await saveFollowingsToFirebaseCache(cleanUsername, oldestFollowings, allUsernames);
+    
+    setProgressText('Шукаю схожі профілі в базі...');
+    const similar = await findSimilarUsersInFirebase(cleanUsername, new Set(allUsernames));
+    setSimilarUsers(similar);
+  };
+
+  const findTweet = async (cleanUsername: string, isPopular: boolean) => {
+    setFoundTweet(null);
+    setAuthor(null);
+    setProgressText('Перевіряю кеш...');
+    
+    const type = isPopular ? 'popular' : 'first';
+    const cachedTweet = await getCachedTweetFromFirebase(cleanUsername, type);
+    if (cachedTweet) {
+      setProgressText('Завантажено з глобального кешу 🔥');
+      setFoundTweet(cachedTweet.tweet);
+      setAuthor(cachedTweet.author);
+      return;
+    }
+
+    setProgressText('Отримую дані профілю...');
+    const userInfoRes = await fetch(`https://api.twitterapi.io/twitter/user/info?userName=${cleanUsername}`, {
+      headers: { 'X-API-Key': getApiKey() }
+    });
+    
+    if (!userInfoRes.ok) throw new Error('Не вдалося знайти користувача');
+    const userData = await userInfoRes.json();
+    const user = userData.user || userData;
+    if (!user || !user.createdAt) throw new Error('Не вдалося отримати дату реєстрації');
+    
+    const authorData = {
+      userId: user.id || user.rest_id,
+      name: user.name,
+      username: user.userName || user.screen_name,
+      profileImageUrlHttps: user.profilePicture || user.profile_image_url_https
+    };
+    setAuthor(authorData);
+
+    const createdYear = new Date(user.createdAt).getFullYear();
+    const currentYear = new Date().getFullYear();
+    
+    // For views, twitter introduced them heavily around end of 2022
+    const startYear = isPopular ? Math.max(createdYear, 2022) : createdYear;
+
+    let targetYear = null;
+    let targetMonth = null;
+    
+    // Step 1: Find the Year
+    for (let y = startYear; y <= currentYear; y++) {
+      setProgressText(`Сканую рік: ${y}...`);
+      const query = `from:${cleanUsername} ${isPopular ? 'min_views:1000' : ''} since:${y}-01-01 until:${y}-12-31`;
+      const res = await fetch(`https://api.twitterapi.io/twitter/tweet/advanced_search?query=${encodeURIComponent(query)}`, {
+        headers: { 'X-API-Key': getApiKey() }
+      });
+      const data = await res.json();
+      const tweets = data.tweets || [];
+      if (tweets.length > 0) {
+        targetYear = y;
+        break;
+      }
+    }
+
+    if (!targetYear) {
+      throw new Error(isPopular ? 'Не знайдено твітів з 1000+ переглядів' : 'Твітів не знайдено');
+    }
+
+    // Step 2: Find the Month
+    for (let m = 1; m <= 12; m++) {
+      const monthStr = m.toString().padStart(2, '0');
+      const nextMonthStr = m === 12 ? '01' : (m + 1).toString().padStart(2, '0');
+      const nextYearStr = m === 12 ? targetYear + 1 : targetYear;
+      
+      setProgressText(`Сканую місяць: ${monthStr}.${targetYear}...`);
+      const query = `from:${cleanUsername} ${isPopular ? 'min_views:1000' : ''} since:${targetYear}-${monthStr}-01 until:${nextYearStr}-${nextMonthStr}-01`;
+      const res = await fetch(`https://api.twitterapi.io/twitter/tweet/advanced_search?query=${encodeURIComponent(query)}`, {
+        headers: { 'X-API-Key': getApiKey() }
+      });
+      const data = await res.json();
+      const tweets = data.tweets || [];
+      if (tweets.length > 0) {
+        targetMonth = m;
+        // Since we found the month, we just fetch all pages for this month and find the absolute oldest
+        setProgressText(`Знайдено місяць! Завантажую всі твіти за ${monthStr}.${targetYear}...`);
+        
+        let allMonthTweets: any[] = [];
+        let cursor = '';
+        let hasNext = true;
+        
+        while (hasNext) {
+          let url = `https://api.twitterapi.io/twitter/tweet/advanced_search?query=${encodeURIComponent(query)}`;
+          if (cursor) url += `&cursor=${encodeURIComponent(cursor)}`;
+          const r = await fetch(url, { headers: { 'X-API-Key': getApiKey() } });
+          const d = await r.json();
+          const pagedTweets = d.tweets || [];
+          allMonthTweets = [...allMonthTweets, ...pagedTweets];
+          
+          if (d.has_next_page && d.next_cursor) {
+            cursor = d.next_cursor;
+          } else {
+            hasNext = false;
+          }
+        }
+        
+        // Twitter returns newest first, so the oldest is the very last one
+        const oldestTweet = allMonthTweets[allMonthTweets.length - 1];
+        
+        const finalTweet: Tweet = {
+          id: oldestTweet.id || oldestTweet.tweet_id || oldestTweet.rest_id,
+          text: oldestTweet.text || oldestTweet.full_text,
+          createdAt: oldestTweet.createdAt || oldestTweet.created_at,
+          viewCount: oldestTweet.viewCount || oldestTweet.views || 0,
+          likeCount: oldestTweet.likeCount || oldestTweet.favorite_count || 0,
+          retweetCount: oldestTweet.retweetCount || oldestTweet.retweet_count || 0,
+        };
+        
+        setFoundTweet(finalTweet);
+        await saveTweetToFirebaseCache(cleanUsername, type, { tweet: finalTweet, author: authorData });
+        return;
+      }
+    }
+  };
+
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Clean username (remove @ if present)
     const cleanUsername = username.trim().replace(/^@/, '');
-    
     if (!cleanUsername) return;
     
     setLoading(true);
     setError(null);
     setHasSearched(true);
-    setFollowings([]);
-    setSimilarUsers([]);
-    setProgressText('Підключаюся до TwitterAPI.io...');
-
+    
     try {
-      const apiKey = import.meta.env.VITE_TWITTERAPI_IO_KEY || import.meta.env.VITE_TWEXAPI_KEY;
-      
-      if (!apiKey) {
-        throw new Error('API key is not defined in .env');
+      if (mode === 'followings') {
+        await fetchFollowings(cleanUsername);
+      } else {
+        await findTweet(cleanUsername, mode === 'popular_tweet');
       }
-
-      if (apiKey.includes('localhost')) {
-        throw new Error('Please update .env with your real TwitterAPI.io key.');
-      }
-
-      // Check Local Storage Cache first
-      const cacheKey = `twitter_first_follows_v2_${cleanUsername.toLowerCase()}`;
-      const cachedData = localStorage.getItem(cacheKey);
-      if (cachedData) {
-        try {
-          const parsedCache = JSON.parse(cachedData);
-          if (parsedCache && parsedCache.length > 0) {
-            setProgressText('Завантажено з локального кешу ⚡');
-            setFollowings(parsedCache);
-            setLoading(false);
-            return;
-          }
-        } catch(e) {
-          console.warn('Cache parsing failed', e);
-        }
-      }
-
-      // Check Global Firebase Cache
-      setProgressText('Перевіряю глобальний кеш (Firebase)...');
-      const firebaseCache = await getCachedFollowingsFromFirebase(cleanUsername);
-      if (firebaseCache && firebaseCache.followings && firebaseCache.followings.length > 0) {
-        setProgressText('Завантажено з глобального кешу 🔥. Шукаю збіги...');
-        setFollowings(firebaseCache.followings);
-        
-        // Update local storage too so next time it's instant
-        try {
-          localStorage.setItem(cacheKey, JSON.stringify(firebaseCache.followings));
-        } catch (e) {}
-        
-        // Find similar users in Firebase
-        const usernamesSet = new Set(firebaseCache.allFollowingsUsernames || []);
-        if (usernamesSet.size > 0) {
-          const similar = await findSimilarUsersInFirebase(cleanUsername, usernamesSet as Set<string>);
-          setSimilarUsers(similar);
-        }
-        
-        setLoading(false);
-        return;
-      }
-
-      try {
-        // 1. Check user info first to get followingCount
-        setProgressText('Перевіряю кількість підписок...');
-        const userCheckResponse = await fetch(`/api/twitter/user/info?userName=${encodeURIComponent(cleanUsername)}`, {
-          headers: {
-            'x-api-key': apiKey
-          }
-        });
-        
-        if (userCheckResponse.ok) {
-          const userCheckData = await userCheckResponse.json();
-          const userInfo = userCheckData.user || userCheckData.data || userCheckData;
-          
-          let followingCount = -1; // -1 means unknown, prevents accidental exit
-          if (userInfo && userInfo.following !== undefined) {
-            followingCount = userInfo.following;
-          } else if (userInfo && userInfo.followingCount !== undefined) {
-            followingCount = userInfo.followingCount;
-          } else if (userInfo && userInfo.friends_count !== undefined) {
-             followingCount = userInfo.friends_count;
-          }
-          
-          if (followingCount > 3000) {
-            throw new Error(`У користувача занадто багато підписок (${followingCount}). Запит найперших підписок для списку >3000 витратить занадто багато кредитів API.`);
-          }
-          if (followingCount === 0) {
-             setFollowings([]);
-             setLoading(false);
-             return;
-          }
-        }
-      } catch (err: any) {
-        if (err.message && err.message.includes('занадто багато підписок')) {
-          throw err;
-        }
-        console.warn('Pre-check failed, continuing...', err);
-      }
-
-      // Add a tiny delay just in case
-      setProgressText('Починаю завантаження списку...');
-      await new Promise(resolve => setTimeout(resolve, 200));
-
-      const allFollowings: TwitterUser[] = [];
-      const seenUserIds = new Set();
-      let cursor = null;
-      let hasNextPage = true;
-      let pageCount = 0;
-
-      while (hasNextPage) {
-        pageCount++;
-        setProgressText(`Завантаження сторінки ${pageCount}... (Отримано: ${allFollowings.length})`);
-        
-        let url = `/api/twitter/user/followings?userName=${encodeURIComponent(cleanUsername)}&pageSize=200`;
-        if (cursor) {
-          url += `&cursor=${encodeURIComponent(cursor)}`;
-        }
-
-        const response = await fetch(url, {
-          headers: {
-            'x-api-key': apiKey,
-            'Content-Type': 'application/json'
-          }
-        });
-
-        let data;
-        try {
-          data = await response.json();
-        } catch (e) {
-          if (!response.ok) {
-            throw new Error(`API Error: ${response.status}`);
-          }
-        }
-
-        if (!response.ok) {
-          throw new Error(`API Error: ${data?.msg || data?.message || response.status}`);
-        }
-        
-        if (data.code !== 0 && data.status !== 'success' && data.code !== 200) {
-          throw new Error(`API Error: ${data.msg || data.message || 'Unknown error'}`);
-        }
-
-        // Handle variations in how the array might be named in the response
-        const items = data.followings || data.followers || data.users || data.data || [];
-        
-        for (const user of items) {
-          const userId = user.id || user.userId || user.user_id;
-          if (userId && !seenUserIds.has(userId)) {
-            seenUserIds.add(userId);
-            // Map twitterapi.io response fields to our interface
-            allFollowings.push({
-              userId: userId,
-              name: user.name || '',
-              username: user.userName || user.username || user.screen_name || '',
-              profileImageUrlHttps: user.profilePicture || user.profileImageUrlHttps || user.profile_image_url_https || user.profile_image_url || '',
-              description: user.description || ''
-            });
-          }
-        }
-
-        hasNextPage = data.has_next_page === true || data.hasNextPage === true;
-        cursor = data.next_cursor || data.nextCursor;
-
-        if (!hasNextPage || !cursor) {
-          break;
-        }
-
-        // Small delay to prevent network congestion
-        await new Promise(resolve => setTimeout(resolve, 200));
-      }
-      
-      setProgressText(`Завершено! Отримано ${allFollowings.length} підписок.`);
-      
-      // Twitter typically returns newest first, so the absolute oldest are at the end of the full list
-      const oldestFollowings = allFollowings.slice(-5).reverse();
-      setFollowings(oldestFollowings);
-      
-      // Save to Local Storage cache
-      try {
-        localStorage.setItem(cacheKey, JSON.stringify(oldestFollowings));
-      } catch(e) {
-        console.warn('Could not save to local storage', e);
-      }
-
-      // Save to Global Firebase Cache
-      const allUsernames = allFollowings.map(u => u.username);
-      await saveFollowingsToFirebaseCache(cleanUsername, oldestFollowings, allUsernames);
-      
-      // Find similar users
-      setProgressText('Шукаю схожі профілі в базі...');
-      const usernamesSet = new Set(allUsernames);
-      const similar = await findSimilarUsersInFirebase(cleanUsername, usernamesSet);
-      setSimilarUsers(similar);
-      
     } catch (err: any) {
       setError(err.message || 'An error occurred while fetching data');
       setProgressText('');
@@ -230,19 +290,37 @@ const App: React.FC = () => {
 
   return (
     <div className="container animate-fade-in">
-      <header style={{ textAlign: 'center', marginBottom: '3rem' }}>
+      <header style={{ textAlign: 'center', marginBottom: '2rem' }}>
         <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '64px', height: '64px', borderRadius: '20px', background: 'rgba(29, 161, 242, 0.1)', color: 'var(--primary)', marginBottom: '1.5rem' }}>
           <MessageCircle size={32} />
         </div>
         <h1 style={{ fontSize: '2.5rem', fontWeight: 700, marginBottom: '1rem', letterSpacing: '-0.02em' }}>
-          Twitter <span style={{ color: 'var(--primary)' }}>First Follows</span>
+          Twitter <span style={{ color: 'var(--primary)' }}>Explorer</span>
         </h1>
-        <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', maxWidth: '500px', margin: '0 auto', lineHeight: 1.6 }}>
-          Find the 5 oldest followings of any Twitter (X) user using TwexAPI.
-        </p>
       </header>
 
-      <form onSubmit={fetchFollowings} className="glass-panel delay-100" style={{ display: 'flex', padding: '0.75rem', gap: '0.75rem', marginBottom: '2.5rem', animation: 'fadeIn 0.4s ease-out 100ms forwards', opacity: 0 }}>
+      <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', marginBottom: '2rem' }}>
+        <button 
+          onClick={() => { setMode('followings'); setHasSearched(false); }}
+          style={{ padding: '0.75rem 1.5rem', borderRadius: '12px', background: mode === 'followings' ? 'var(--primary)' : 'rgba(255,255,255,0.05)', color: 'white', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', transition: 'all 0.2s' }}
+        >
+          <Users size={18} /> Підписки
+        </button>
+        <button 
+          onClick={() => { setMode('first_tweet'); setHasSearched(false); }}
+          style={{ padding: '0.75rem 1.5rem', borderRadius: '12px', background: mode === 'first_tweet' ? 'var(--primary)' : 'rgba(255,255,255,0.05)', color: 'white', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', transition: 'all 0.2s' }}
+        >
+          <FileText size={18} /> Перший Твіт
+        </button>
+        <button 
+          onClick={() => { setMode('popular_tweet'); setHasSearched(false); }}
+          style={{ padding: '0.75rem 1.5rem', borderRadius: '12px', background: mode === 'popular_tweet' ? 'var(--primary)' : 'rgba(255,255,255,0.05)', color: 'white', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', transition: 'all 0.2s' }}
+        >
+          <TrendingUp size={18} /> 1000 Переглядів
+        </button>
+      </div>
+
+      <form onSubmit={handleSearch} className="glass-panel delay-100" style={{ display: 'flex', padding: '0.75rem', gap: '0.75rem', marginBottom: '2.5rem', animation: 'fadeIn 0.4s ease-out 100ms forwards' }}>
         <div style={{ position: 'relative', flex: 1 }}>
           <div style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }}>
             <Search size={20} />
@@ -251,7 +329,7 @@ const App: React.FC = () => {
             type="text"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            placeholder="Enter @username"
+            placeholder="Введіть @username"
             style={{ 
               width: '100%', 
               padding: '1rem 1rem 1rem 3rem', 
@@ -285,7 +363,7 @@ const App: React.FC = () => {
             cursor: (loading || !username.trim()) ? 'not-allowed' : 'pointer'
           }}
         >
-          {loading ? <Loader2 size={20} style={{ animation: 'spin 1s linear infinite' }} /> : 'Search'}
+          {loading ? <Loader2 size={20} style={{ animation: 'spin 1s linear infinite' }} /> : 'Пошук'}
         </button>
       </form>
 
@@ -297,29 +375,28 @@ const App: React.FC = () => {
 
       {error && (
         <div className="glass-panel" style={{ padding: '1.5rem', borderLeft: '4px solid #ef4444', backgroundColor: 'rgba(239, 68, 68, 0.05)' }}>
-          <h3 style={{ color: '#ef4444', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            Error
-          </h3>
+          <h3 style={{ color: '#ef4444', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>Error</h3>
           <p style={{ color: 'rgba(255,255,255,0.8)' }}>{error}</p>
         </div>
       )}
 
-      {hasSearched && !loading && !error && followings.length === 0 && (
+      {/* Render Followings Mode */}
+      {mode === 'followings' && hasSearched && !loading && !error && followings.length === 0 && (
         <div className="glass-panel" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
           <Users size={48} style={{ opacity: 0.2, margin: '0 auto 1rem' }} />
-          <p>No followings found or profile is private.</p>
+          <p>Немає підписок або профіль закритий.</p>
         </div>
       )}
 
-      {followings.length > 0 && (
-        <div className="delay-200" style={{ animation: 'fadeIn 0.4s ease-out 200ms forwards', opacity: 0 }}>
+      {mode === 'followings' && followings.length > 0 && (
+        <div className="delay-200" style={{ animation: 'fadeIn 0.4s ease-out 200ms forwards' }}>
           <h2 style={{ fontSize: '1.25rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <Users size={20} color="var(--primary)" /> 
-            Oldest Followings
+            Найстаріші Підписки
           </h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             {followings.map((user, index) => (
-              <div key={user.userId} className="glass-panel" style={{ padding: '1.5rem', display: 'flex', alignItems: 'center', gap: '1.5rem', transition: 'transform 0.2s', cursor: 'pointer' }} onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'} onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}>
+              <div key={user.userId} className="glass-panel" style={{ padding: '1.5rem', display: 'flex', alignItems: 'center', gap: '1.5rem', cursor: 'pointer' }}>
                 <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
                   {index + 1}
                 </div>
@@ -335,14 +412,9 @@ const App: React.FC = () => {
                 <div style={{ flex: 1 }}>
                   <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '0.25rem' }}>{user.name}</h3>
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>@{user.username}</p>
-                  {user.description && (
-                    <p style={{ marginTop: '0.5rem', fontSize: '0.9rem', color: 'rgba(255,255,255,0.7)', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                      {user.description}
-                    </p>
-                  )}
                 </div>
                 
-                <a href={`https://twitter.com/${user.username}`} target="_blank" rel="noopener noreferrer" style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', transition: 'all 0.2s' }} onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--primary)'; e.currentTarget.style.color = 'white'; }} onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = 'var(--text-muted)'; }}>
+                <a href={`https://twitter.com/${user.username}`} target="_blank" rel="noopener noreferrer" style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', transition: 'all 0.2s' }}>
                   <ArrowRight size={20} />
                 </a>
               </div>
@@ -351,18 +423,15 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {similarUsers.length > 0 && (
-        <div className="mt-8 delay-300" style={{ animation: 'fadeIn 0.4s ease-out 300ms forwards', opacity: 0, marginTop: '2.5rem' }}>
+      {mode === 'followings' && similarUsers.length > 0 && (
+        <div className="mt-8 delay-300" style={{ animation: 'fadeIn 0.4s ease-out 300ms forwards', marginTop: '2.5rem' }}>
           <h2 style={{ fontSize: '1.25rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <Users size={20} color="var(--primary)" />
             Схожі профілі з бази
           </h2>
-          <p style={{ color: 'var(--text-muted)', marginBottom: '1rem', fontSize: '0.9rem' }}>
-            Ці відскановані раніше користувачі мають з вами найбільше спільних підписок:
-          </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             {similarUsers.map((su, index) => (
-              <div key={su.username} className="glass-panel" style={{ padding: '1.5rem', display: 'flex', alignItems: 'center', gap: '1.5rem', transition: 'transform 0.2s' }}>
+              <div key={su.username} className="glass-panel" style={{ padding: '1.5rem', display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
                 <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'linear-gradient(45deg, var(--primary), #8a2be2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: 'white', fontSize: '1rem' }}>
                   {index + 1}
                 </div>
@@ -372,7 +441,7 @@ const App: React.FC = () => {
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>{su.commonCount} спільних підписок</p>
                 </div>
                 
-                <a href={`https://twitter.com/${su.username}`} target="_blank" rel="noopener noreferrer" style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', transition: 'all 0.2s' }} onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--primary)'; e.currentTarget.style.color = 'white'; }} onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = 'var(--text-muted)'; }}>
+                <a href={`https://twitter.com/${su.username}`} target="_blank" rel="noopener noreferrer" style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
                   <ArrowRight size={20} />
                 </a>
               </div>
@@ -380,7 +449,44 @@ const App: React.FC = () => {
           </div>
         </div>
       )}
-      
+
+      {/* Render Tweet Mode */}
+      {mode !== 'followings' && foundTweet && author && (
+        <div className="glass-panel delay-200" style={{ padding: '2rem', animation: 'fadeIn 0.4s ease-out 200ms forwards' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
+             {author.profileImageUrlHttps && <img src={author.profileImageUrlHttps} alt={author.name} style={{ width: '48px', height: '48px', borderRadius: '50%', objectFit: 'cover' }} />}
+             <div>
+               <h3 style={{ fontSize: '1.1rem', fontWeight: 600 }}>{author.name}</h3>
+               <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>@{author.username}</p>
+             </div>
+          </div>
+          
+          <p style={{ fontSize: '1.25rem', lineHeight: 1.5, marginBottom: '1.5rem', whiteSpace: 'pre-wrap' }}>
+            {foundTweet.text}
+          </p>
+          
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
+            {new Date(foundTweet.createdAt).toLocaleString('uk-UA')}
+          </p>
+          
+          <div style={{ display: 'flex', gap: '2rem', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)' }}>
+               <TrendingUp size={18} /> {foundTweet.viewCount?.toLocaleString() || 0}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)' }}>
+               ❤️ {foundTweet.likeCount?.toLocaleString() || 0}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)' }}>
+               🔁 {foundTweet.retweetCount?.toLocaleString() || 0}
+            </div>
+          </div>
+          
+          <a href={`https://twitter.com/${author.username}/status/${foundTweet.id}`} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', marginTop: '1.5rem', padding: '0.5rem 1rem', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', color: 'var(--primary)', textDecoration: 'none' }}>
+            Відкрити в Twitter →
+          </a>
+        </div>
+      )}
+
       <style>
         {`
           @keyframes spin {

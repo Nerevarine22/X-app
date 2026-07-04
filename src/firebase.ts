@@ -61,6 +61,36 @@ export const saveFollowingsToFirebaseCache = async (username: string, followings
   }
 };
 
+export const getCachedTweetFromFirebase = async (username: string, type: 'first' | 'popular') => {
+  if (!db) return null;
+  try {
+    const docRef = doc(db, "twitter_first_tweets", `${username.toLowerCase()}_${type}`);
+    const docSnap = await getDoc(docRef);
+
+    if (docSnap.exists()) {
+      return docSnap.data().tweet;
+    } else {
+      return null;
+    }
+  } catch (error) {
+    console.error("Error reading tweet from Firebase cache:", error);
+    return null;
+  }
+};
+
+export const saveTweetToFirebaseCache = async (username: string, type: 'first' | 'popular', tweet: any) => {
+  if (!db) return;
+  try {
+    const docRef = doc(db, "twitter_first_tweets", `${username.toLowerCase()}_${type}`);
+    await setDoc(docRef, { 
+      tweet, 
+      cachedAt: new Date().toISOString() 
+    }, { merge: true });
+  } catch (error) {
+    console.error("Error writing tweet to Firebase cache:", error);
+  }
+};
+
 export interface SimilarUser {
   username: string;
   commonCount: number;
