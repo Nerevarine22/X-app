@@ -2,10 +2,10 @@ import React, { useState } from 'react';
 import { Search, Loader2, Users, ArrowRight, MessageCircle } from 'lucide-react';
 
 interface TwitterUser {
-  id: string;
+  userId: string;
   name: string;
   username: string;
-  profile_image_url: string;
+  profileImageUrlHttps: string;
   description?: string;
 }
 
@@ -42,7 +42,7 @@ const App: React.FC = () => {
         throw new Error('You pasted "http://localhost:5173/" instead of your TwexAPI key in .env. Please update .env with your real key.');
       }
 
-      const response = await fetch(`https://api.twexapi.io/v1/users/following?username=${encodeURIComponent(cleanUsername)}`, {
+      const response = await fetch(`https://api.twexapi.io/twitter/following/${encodeURIComponent(cleanUsername)}/200`, {
         headers: {
           'Authorization': `Bearer ${apiKey}`,
           'Content-Type': 'application/json'
@@ -50,12 +50,12 @@ const App: React.FC = () => {
       });
 
       if (!response.ok) {
-        throw new Error(`API Error: ${response.status} ${response.statusText}`);
+        throw new Error(`API Error: ${response.status}`);
       }
 
       const data = await response.json();
       
-      const allFollowings: TwitterUser[] = data.data || [];
+      const allFollowings: TwitterUser[] = data.users || [];
       
       // Get the oldest 5
       setFollowings(allFollowings.slice(-5).reverse());
@@ -152,13 +152,13 @@ const App: React.FC = () => {
           </h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             {followings.map((user, index) => (
-              <div key={user.id} className="glass-panel" style={{ padding: '1.5rem', display: 'flex', alignItems: 'center', gap: '1.5rem', transition: 'transform 0.2s', cursor: 'pointer' }} onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'} onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}>
+              <div key={user.userId} className="glass-panel" style={{ padding: '1.5rem', display: 'flex', alignItems: 'center', gap: '1.5rem', transition: 'transform 0.2s', cursor: 'pointer' }} onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'} onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}>
                 <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
                   {index + 1}
                 </div>
                 
-                {user.profile_image_url ? (
-                  <img src={user.profile_image_url} alt={user.name} style={{ width: '56px', height: '56px', borderRadius: '50%', objectFit: 'cover' }} />
+                {user.profileImageUrlHttps ? (
+                  <img src={user.profileImageUrlHttps} alt={user.name} style={{ width: '56px', height: '56px', borderRadius: '50%', objectFit: 'cover' }} />
                 ) : (
                   <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'linear-gradient(45deg, var(--primary), #8a2be2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', fontWeight: 'bold' }}>
                     {user.name.charAt(0)}
