@@ -42,7 +42,40 @@ const App: React.FC = () => {
         throw new Error('You pasted "http://localhost:5173/" instead of your TwexAPI key in .env. Please update .env with your real key.');
       }
 
-      const response = await fetch(`https://api.twexapi.io/twitter/following/${encodeURIComponent(cleanUsername)}/5000`, {
+      // 1. Check user info first to get friendCount (following count)
+      const userCheckResponse = await fetch(`https://api.twexapi.io/twitter/users`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify([cleanUsername])
+      });
+      
+      const userCheckData = await userCheckResponse.json();
+      if (userCheckData.code && userCheckData.code !== 200) {
+        throw new Error(`API Error: ${userCheckData.msg || userCheckData.code}`);
+      }
+      
+      const userInfo = userCheckData.data?.[0];
+      if (!userInfo) {
+        throw new Error('Користувача не знайдено або профіль закритий');
+      }
+      
+      const followingCount = userInfo.friendCount || 0;
+      
+      if (followingCount > 5000) {
+        throw new Error(`У користувача занадто багато підписок (${followingCount}). Запит найперших підписок для списку >5000 витратить занадто багато кредитів API.`);
+      }
+      
+      if (followingCount === 0) {
+        setFollowings([]);
+        setLoading(false);
+        return;
+      }
+
+      // 2. Fetch followings since it's <= 5000
+      const response = await fetch(`https://api.twexapi.io/twitter/following/${encodeURIComponent(cleanUsername)}/${Math.max(200, followingCount)}`, {
         headers: {
           'Authorization': `Bearer ${apiKey}`,
           'Content-Type': 'application/json'
