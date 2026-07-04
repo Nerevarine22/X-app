@@ -17,8 +17,11 @@ let app;
 let db: any = null;
 
 try {
-  app = initializeApp(firebaseConfig);
-  db = getFirestore(app);
+  // Only initialize if a real key is provided
+  if (firebaseConfig.apiKey && firebaseConfig.apiKey !== "YOUR_API_KEY") {
+    app = initializeApp(firebaseConfig);
+    db = getFirestore(app);
+  }
 } catch (e) {
   console.warn("Firebase not properly configured yet.", e);
 }
