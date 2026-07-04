@@ -80,7 +80,7 @@ const App: React.FC = () => {
     }
 
     setProgressText('Перевіряю існування профілю...');
-    const userCheckResponse = await fetch(`https://api.twitterapi.io/twitter/user/info?userName=${cleanUsername}`, {
+    const userCheckResponse = await fetch(`/api/twitter/user/info?userName=${cleanUsername}`, {
       headers: { 'X-API-Key': getApiKey() }
     });
     
@@ -104,7 +104,7 @@ const App: React.FC = () => {
       pageCount++;
       setProgressText(`Завантаження сторінки ${pageCount}... Отримано ${allFollowings.length}`);
 
-      let url = `https://api.twitterapi.io/twitter/user/followings?userName=${cleanUsername}`;
+      let url = `/api/twitter/user/followings?userName=${cleanUsername}`;
       if (cursor) url += `&cursor=${encodeURIComponent(cursor)}`;
 
       const response = await fetch(url, { headers: { 'X-API-Key': getApiKey() } });
@@ -164,7 +164,7 @@ const App: React.FC = () => {
     }
 
     setProgressText('Отримую дані профілю...');
-    const userInfoRes = await fetch(`https://api.twitterapi.io/twitter/user/info?userName=${cleanUsername}`, {
+    const userInfoRes = await fetch(`/api/twitter/user/info?userName=${cleanUsername}`, {
       headers: { 'X-API-Key': getApiKey() }
     });
     
@@ -193,7 +193,7 @@ const App: React.FC = () => {
     for (let y = startYear; y <= currentYear; y++) {
       setProgressText(`Сканую рік: ${y}...`);
       const query = `from:${cleanUsername} ${isPopular ? 'min_views:1000' : ''} since:${y}-01-01 until:${y}-12-31`;
-      const res = await fetch(`https://api.twitterapi.io/twitter/tweet/advanced_search?query=${encodeURIComponent(query)}`, {
+      const res = await fetch(`/api/twitter/tweet/advanced_search?query=${encodeURIComponent(query)}`, {
         headers: { 'X-API-Key': getApiKey() }
       });
       const data = await res.json();
@@ -216,7 +216,7 @@ const App: React.FC = () => {
       
       setProgressText(`Сканую місяць: ${monthStr}.${targetYear}...`);
       const query = `from:${cleanUsername} ${isPopular ? 'min_views:1000' : ''} since:${targetYear}-${monthStr}-01 until:${nextYearStr}-${nextMonthStr}-01`;
-      const res = await fetch(`https://api.twitterapi.io/twitter/tweet/advanced_search?query=${encodeURIComponent(query)}`, {
+      const res = await fetch(`/api/twitter/tweet/advanced_search?query=${encodeURIComponent(query)}`, {
         headers: { 'X-API-Key': getApiKey() }
       });
       const data = await res.json();
@@ -230,7 +230,7 @@ const App: React.FC = () => {
         let hasNext = true;
         
         while (hasNext) {
-          let url = `https://api.twitterapi.io/twitter/tweet/advanced_search?query=${encodeURIComponent(query)}`;
+          let url = `/api/twitter/tweet/advanced_search?query=${encodeURIComponent(query)}`;
           if (cursor) url += `&cursor=${encodeURIComponent(cursor)}`;
           const r = await fetch(url, { headers: { 'X-API-Key': getApiKey() } });
           const d = await r.json();
