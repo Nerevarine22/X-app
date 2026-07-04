@@ -423,7 +423,7 @@ const App: React.FC = () => {
               type="text" 
               value={searchInput} 
               onChange={e => setSearchInput(e.target.value)} 
-              placeholder="Look up a handle... (@username)"
+              placeholder="username"
               autoComplete="off"
               spellCheck="false"
             />
