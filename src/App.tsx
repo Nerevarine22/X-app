@@ -16,6 +16,8 @@ const App: React.FC = () => {
   const [followings, setFollowings] = useState<TwitterUser[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
 
+  const [progressText, setProgressText] = useState('');
+
   const fetchFollowings = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -28,94 +30,95 @@ const App: React.FC = () => {
     setError(null);
     setHasSearched(true);
     setFollowings([]);
+    setProgressText('Підключаюся до TwitterAPI.io...');
 
     try {
-      // NOTE: Replace this with the exact TwexAPI endpoint from their docs if different
-      const apiKey = import.meta.env.VITE_TWEXAPI_KEY;
+      const apiKey = import.meta.env.VITE_TWITTERAPI_IO_KEY || import.meta.env.VITE_TWEXAPI_KEY;
       
       if (!apiKey) {
-        throw new Error('API key VITE_TWEXAPI_KEY is not defined in .env');
+        throw new Error('API key is not defined in .env');
       }
 
-      // If they really put http://localhost... as the key, let's warn them nicely
       if (apiKey.includes('localhost')) {
-        throw new Error('You pasted "http://localhost:5173/" instead of your TwexAPI key in .env. Please update .env with your real key.');
+        throw new Error('Please update .env with your real TwitterAPI.io key.');
       }
 
-      let followingCount = 5000; // Default limit
+      const allFollowings: TwitterUser[] = [];
+      const seenUserIds = new Set();
+      let cursor = null;
+      let hasNextPage = true;
+      let pageCount = 0;
 
-      try {
-        // 1. Check user info first to get friendCount (following count)
-        const userCheckResponse = await fetch(`https://api.twexapi.io/twitter/users`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify([cleanUsername])
-        });
+      while (hasNextPage) {
+        pageCount++;
+        setProgressText(`Завантаження сторінки ${pageCount}... (Отримано: ${allFollowings.length})`);
         
-        if (userCheckResponse.ok) {
-          const userCheckData = await userCheckResponse.json();
-          if (userCheckData.code === 200 && userCheckData.data?.[0]) {
-            followingCount = userCheckData.data[0].friendCount || 0;
-            
-            if (followingCount > 5000) {
-              throw new Error(`У користувача занадто багато підписок (${followingCount}). Запит найперших підписок для списку >5000 витратить занадто багато кредитів API.`);
-            }
-            
-            if (followingCount === 0) {
-              setFollowings([]);
-              setLoading(false);
-              return;
-            }
+        let url = `https://api.twitterapi.io/twitter/user/followings?userName=${encodeURIComponent(cleanUsername)}&pageSize=200`;
+        if (cursor) {
+          url += `&cursor=${encodeURIComponent(cursor)}`;
+        }
+
+        const response = await fetch(url, {
+          headers: {
+            'x-api-key': apiKey,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        let data;
+        try {
+          data = await response.json();
+        } catch (e) {
+          if (!response.ok) {
+            throw new Error(`API Error: ${response.status}`);
           }
         }
-      } catch (err: any) {
-        // If the error is our custom > 5000 error, rethrow it
-        if (err.message && err.message.includes('занадто багато підписок')) {
-          throw err;
-        }
-        // Otherwise, it might be a CORS or network block (e.g. adblocker blocking POST requests).
-        // In that case, we just ignore the pre-check and use the default 5000 limit.
-        console.warn('Pre-check failed, falling back to default limit:', err);
-      }
 
-      // 2. Fetch followings
-      const response = await fetch(`https://api.twexapi.io/twitter/following/${encodeURIComponent(cleanUsername)}/${Math.max(200, followingCount)}`, {
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      let data;
-      try {
-        data = await response.json();
-      } catch (e) {
         if (!response.ok) {
-          throw new Error(`API Error: ${response.status}`);
+          throw new Error(`API Error: ${data?.msg || data?.message || response.status}`);
         }
-      }
+        
+        if (data.code !== 0 && data.status !== 'success' && data.code !== 200) {
+          throw new Error(`API Error: ${data.msg || data.message || 'Unknown error'}`);
+        }
 
-      if (!response.ok) {
-        throw new Error(`API Error: ${data?.msg || data?.code || response.status}`);
+        // Handle variations in how the array might be named in the response
+        const items = data.followings || data.followers || data.users || data.data || [];
+        
+        for (const user of items) {
+          const userId = user.id || user.userId || user.user_id;
+          if (userId && !seenUserIds.has(userId)) {
+            seenUserIds.add(userId);
+            // Map twitterapi.io response fields to our interface
+            allFollowings.push({
+              userId: userId,
+              name: user.name || '',
+              username: user.userName || user.username || user.screen_name || '',
+              profileImageUrlHttps: user.profilePicture || user.profileImageUrlHttps || user.profile_image_url || '',
+              description: user.description || ''
+            });
+          }
+        }
+
+        hasNextPage = data.has_next_page === true || data.hasNextPage === true;
+        cursor = data.next_cursor || data.nextCursor;
+
+        if (!hasNextPage || !cursor) {
+          break;
+        }
+
+        // Small delay to prevent hitting rate limits too fast
+        await new Promise(resolve => setTimeout(resolve, 500));
       }
       
-      // TwexAPI returns custom error codes in JSON even on some 200s or on 403s
-      if (data && data.code && data.code !== 200) {
-        throw new Error(`API Error: ${data.msg || data.code}`);
-      }
+      setProgressText(`Завершено! Отримано ${allFollowings.length} підписок.`);
       
-      const allFollowings: TwitterUser[] = data.data || [];
-      
-      // To get the absolute oldest followings, we fetch a large batch (5000) 
-      // and take the ones at the end of the array, since Twitter returns newest first.
-      // 5000 covers the entirety of followings for 99% of normal users.
+      // Twitter typically returns newest first, so the absolute oldest are at the end of the full list
       setFollowings(allFollowings.slice(-5).reverse());
       
     } catch (err: any) {
       setError(err.message || 'An error occurred while fetching data');
+      setProgressText('');
     } finally {
       setLoading(false);
     }
@@ -181,6 +184,12 @@ const App: React.FC = () => {
           {loading ? <Loader2 size={20} style={{ animation: 'spin 1s linear infinite' }} /> : 'Search'}
         </button>
       </form>
+
+      {loading && progressText && (
+        <div style={{ textAlign: 'center', color: 'var(--primary)', marginBottom: '2rem', animation: 'fadeIn 0.3s' }}>
+          {progressText}
+        </div>
+      )}
 
       {error && (
         <div className="glass-panel" style={{ padding: '1.5rem', borderLeft: '4px solid #ef4444', backgroundColor: 'rgba(239, 68, 68, 0.05)' }}>
