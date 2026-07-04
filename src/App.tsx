@@ -296,7 +296,20 @@ const App: React.FC = () => {
       if (!similar || similar.length === 0) {
         throw new Error('No shared follows found in database.');
       }
-      setSharedFollows({ status: 'done', data: similar.slice(0, 5) });
+      const topSimilar = similar.slice(0, 5);
+      await Promise.all(topSimilar.map(async (u) => {
+        try {
+          const res = await fetch(`/api/twitter/user/info?userName=${u.username}`, { headers: { 'X-API-Key': getApiKey() } });
+          if (res.ok) {
+            const data = await res.json();
+            const usr = data.data || data.user || data;
+            if (usr) {
+              u.avatar = usr.profilePicture || usr.profileImageUrlHttps || usr.profile_image_url_https || usr.avatar || '';
+            }
+          }
+        } catch(e) {}
+      }));
+      setSharedFollows({ status: 'done', data: topSimilar });
     } catch(e: any) {
       setSharedFollows({ status: 'error', data: null, error: e.message });
     }
@@ -595,7 +608,11 @@ const App: React.FC = () => {
                       {sharedFollows.data.map((u, i) => (
                         <a href={`https://x.com/${u.username}`} target="_blank" rel="noopener noreferrer" key={u.username} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(255,255,255,0.03)', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', textDecoration: 'none', color: 'inherit' }}>
                           <div style={{ width: '20px', fontSize: '12px', color: 'var(--muted)', fontWeight: 'bold' }}>{i + 1}</div>
-                          <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>{u.username.charAt(0)}</div>
+                          {u.avatar ? (
+                            <img src={u.avatar} crossOrigin="anonymous" style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }} />
+                          ) : (
+                            <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>{u.username.charAt(0)}</div>
+                          )}
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ fontWeight: 'bold', fontSize: '14px', color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>@{u.username}</div>
                             <div style={{ fontSize: '12.5px', color: 'var(--muted)' }}>{u.commonCount} shared follows</div>

@@ -129,6 +129,7 @@ export const saveMentionsToFirebaseCache = async (username: string, mentions: Me
 export interface SimilarUser {
   username: string;
   commonCount: number;
+  avatar?: string;
 }
 
 export const findSimilarUsersInFirebase = async (currentUsername: string, currentUsernamesSet: Set<string>): Promise<SimilarUser[]> => {
