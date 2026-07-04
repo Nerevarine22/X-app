@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Search, Loader2, Users, ArrowRight, MessageCircle } from 'lucide-react';
+import { getCachedFollowingsFromFirebase, saveFollowingsToFirebaseCache } from './firebase';
 
 interface TwitterUser {
   userId: string;
@@ -41,6 +42,75 @@ const App: React.FC = () => {
 
       if (apiKey.includes('localhost')) {
         throw new Error('Please update .env with your real TwitterAPI.io key.');
+      }
+
+      // Check Local Storage Cache first
+      const cacheKey = `twitter_first_follows_${cleanUsername.toLowerCase()}`;
+      const cachedData = localStorage.getItem(cacheKey);
+      if (cachedData) {
+        try {
+          const parsedCache = JSON.parse(cachedData);
+          if (parsedCache && parsedCache.length > 0) {
+            setProgressText('Завантажено з локального кешу ⚡');
+            setFollowings(parsedCache);
+            setLoading(false);
+            return;
+          }
+        } catch(e) {
+          console.warn('Cache parsing failed', e);
+        }
+      }
+
+      // Check Global Firebase Cache
+      setProgressText('Перевіряю глобальний кеш (Firebase)...');
+      const firebaseCache = await getCachedFollowingsFromFirebase(cleanUsername);
+      if (firebaseCache && firebaseCache.length > 0) {
+        setProgressText('Завантажено з глобального кешу 🔥');
+        setFollowings(firebaseCache);
+        
+        // Update local storage too so next time it's instant
+        try {
+          localStorage.setItem(cacheKey, JSON.stringify(firebaseCache));
+        } catch (e) {}
+        
+        setLoading(false);
+        return;
+      }
+
+      try {
+        // 1. Check user info first to get followingCount
+        setProgressText('Перевіряю кількість підписок...');
+        const userCheckResponse = await fetch(`https://api.twitterapi.io/twitter/user/info?userName=${encodeURIComponent(cleanUsername)}`, {
+          headers: {
+            'x-api-key': apiKey
+          }
+        });
+        
+        if (userCheckResponse.ok) {
+          const userCheckData = await userCheckResponse.json();
+          const userInfo = userCheckData.user || userCheckData.data || userCheckData;
+          
+          let followingCount = 0;
+          if (userInfo && userInfo.followingCount !== undefined) {
+            followingCount = userInfo.followingCount;
+          } else if (userInfo && userInfo.friends_count !== undefined) {
+             followingCount = userInfo.friends_count;
+          }
+          
+          if (followingCount > 3000) {
+            throw new Error(`У користувача занадто багато підписок (${followingCount}). Запит найперших підписок для списку >3000 витратить занадто багато кредитів API.`);
+          }
+          if (followingCount === 0) {
+             setFollowings([]);
+             setLoading(false);
+             return;
+          }
+        }
+      } catch (err: any) {
+        if (err.message && err.message.includes('занадто багато підписок')) {
+          throw err;
+        }
+        console.warn('Pre-check failed, continuing...', err);
       }
 
       const allFollowings: TwitterUser[] = [];
@@ -114,7 +184,18 @@ const App: React.FC = () => {
       setProgressText(`Завершено! Отримано ${allFollowings.length} підписок.`);
       
       // Twitter typically returns newest first, so the absolute oldest are at the end of the full list
-      setFollowings(allFollowings.slice(-5).reverse());
+      const oldestFollowings = allFollowings.slice(-5).reverse();
+      setFollowings(oldestFollowings);
+      
+      // Save to Local Storage cache
+      try {
+        localStorage.setItem(cacheKey, JSON.stringify(oldestFollowings));
+      } catch(e) {
+        console.warn('Could not save to local storage', e);
+      }
+
+      // Save to Global Firebase Cache
+      await saveFollowingsToFirebaseCache(cleanUsername, oldestFollowings);
       
     } catch (err: any) {
       setError(err.message || 'An error occurred while fetching data');
