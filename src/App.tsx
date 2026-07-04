@@ -90,8 +90,10 @@ const App: React.FC = () => {
           const userCheckData = await userCheckResponse.json();
           const userInfo = userCheckData.user || userCheckData.data || userCheckData;
           
-          let followingCount = 0;
-          if (userInfo && userInfo.followingCount !== undefined) {
+          let followingCount = -1; // -1 means unknown, prevents accidental exit
+          if (userInfo && userInfo.following !== undefined) {
+            followingCount = userInfo.following;
+          } else if (userInfo && userInfo.followingCount !== undefined) {
             followingCount = userInfo.followingCount;
           } else if (userInfo && userInfo.friends_count !== undefined) {
              followingCount = userInfo.friends_count;
