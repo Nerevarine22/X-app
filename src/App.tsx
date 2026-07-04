@@ -58,6 +58,14 @@ const App: React.FC = () => {
         if (parsedCache && parsedCache.length > 0) {
           setProgressText('Завантажено з локального кешу ⚡');
           setFollowings(parsedCache);
+          
+          // Check Firebase in background to get similar users
+          const firebaseCache = await getCachedFollowingsFromFirebase(cleanUsername);
+          if (firebaseCache && firebaseCache.allFollowingsUsernames && firebaseCache.allFollowingsUsernames.length > 0) {
+             const similar = await findSimilarUsersInFirebase(cleanUsername, new Set(firebaseCache.allFollowingsUsernames as string[]));
+             setSimilarUsers(similar);
+          }
+          
           setLoading(false);
           return;
         }
