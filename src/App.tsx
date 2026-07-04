@@ -339,6 +339,88 @@ const App: React.FC = () => {
     if(sharedFollows.status !== 'done') runSharedFollows(activeUser);
   };
 
+  const renderCard = () => (
+    <>
+      <div className="export-card-header">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {activeUserAvatar && <img src={activeUserAvatar} crossOrigin="anonymous" style={{ width: '24px', height: '24px', borderRadius: '50%', objectFit: 'cover' }} />}
+          <span>X Archive</span>
+        </div>
+        <div>@{activeUser}</div>
+      </div>
+      
+      <div style={{ display: 'flex', gap: '20px' }}>
+        {cardOptions.followings && followings.status === 'done' && followings.data && (
+          <div style={{ flex: 1 }}>
+            <div className="export-section-title">OLDEST FOLLOWS</div>
+            <div className="export-follows-grid">
+              {followings.data.slice(0, 5).map((u, i) => (
+                <div className="export-follow-item" key={u.userId}>
+                   <div style={{ width: '16px', color: 'var(--muted)', fontSize: '12px' }}>{i + 1}</div>
+                   {u.profileImageUrlHttps ? <img src={u.profileImageUrlHttps} crossOrigin="anonymous" className="export-tweet-media" style={{width: '32px', height: '32px', borderRadius: '50%'}} /> : <div style={{width: '32px', height: '32px', borderRadius: '50%', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold'}}>{u.name.charAt(0)}</div>}
+                   <div style={{fontWeight: 'bold'}}>@{u.username}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {cardOptions.firstTweet && firstTweet.status === 'done' && firstTweet.data && (
+        <div>
+          <div className="export-section-title">FIRST POST</div>
+          <div className="export-tweet">
+            <div className="export-tweet-text">
+              {firstTweet.data.text.length > 100 ? firstTweet.data.text.substring(0, 100) + '...' : firstTweet.data.text}
+              <div style={{ fontSize: '12px', color: 'var(--muted)', marginTop: '8px' }}>
+                {new Date(firstTweet.data.createdAt).toLocaleDateString('uk-UA')} • {firstTweet.data.likeCount} likes
+              </div>
+            </div>
+            {firstTweet.data.media && firstTweet.data.media[0] && (
+              <img crossOrigin="anonymous" src={firstTweet.data.media[0].previewUrl || firstTweet.data.media[0].url} className="export-tweet-media" />
+            )}
+          </div>
+        </div>
+      )}
+      {cardOptions.popularTweet && popularTweet.status === 'done' && popularTweet.data && (
+        <div>
+          <div className="export-section-title">FIRST TO 100 LIKES</div>
+          <div className="export-tweet">
+            <div className="export-tweet-text">
+              {popularTweet.data.text.length > 100 ? popularTweet.data.text.substring(0, 100) + '...' : popularTweet.data.text}
+              <div style={{ fontSize: '12px', color: 'var(--muted)', marginTop: '8px' }}>
+                {new Date(popularTweet.data.createdAt).toLocaleDateString('uk-UA')} • {popularTweet.data.likeCount} likes
+              </div>
+            </div>
+            {popularTweet.data.media && popularTweet.data.media[0] && (
+              <img crossOrigin="anonymous" src={popularTweet.data.media[0].previewUrl || popularTweet.data.media[0].url} className="export-tweet-media" />
+            )}
+          </div>
+        </div>
+      )}
+      {cardOptions.mentions && mentions.status === 'done' && mentions.data && (
+        <div>
+          <div className="export-section-title">TOP TAGGER</div>
+          <div className="export-follow-item" style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '12px', border: '1px solid var(--border)' }}>
+            {mentions.data[0].user.profileImageUrlHttps ? <img src={mentions.data[0].user.profileImageUrlHttps} crossOrigin="anonymous" className="export-tweet-media" style={{width: '32px', height: '32px', borderRadius: '50%'}} /> : <div style={{width: '32px', height: '32px', borderRadius: '50%', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold'}}>{mentions.data[0].user.username.charAt(0)}</div>}
+            <div style={{fontWeight: 'bold'}}>@{mentions.data[0].user.username}</div>
+            <div style={{ color: 'var(--accent)', fontSize: '12px', marginLeft: 'auto' }}>{mentions.data[0].count} tags</div>
+          </div>
+        </div>
+      )}
+      {cardOptions.sharedFollows && sharedFollows.status === 'done' && sharedFollows.data && (
+        <div>
+          <div className="export-section-title">TOP SHARED FOLLOW</div>
+          <div className="export-follow-item" style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '12px', border: '1px solid var(--border)' }}>
+            {sharedFollows.data[0].avatar ? <img src={sharedFollows.data[0].avatar} crossOrigin="anonymous" className="export-tweet-media" style={{width: '32px', height: '32px', borderRadius: '50%'}} /> : <div style={{width: '32px', height: '32px', borderRadius: '50%', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold'}}>{sharedFollows.data[0].username.charAt(0)}</div>}
+            <div style={{fontWeight: 'bold'}}>@{sharedFollows.data[0].username}</div>
+            <div style={{ color: 'var(--accent)', fontSize: '12px', marginLeft: 'auto' }}>{sharedFollows.data[0].commonCount} common</div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+
   const downloadCard = async () => {
     if (!posterRef.current) return;
     try {
@@ -718,6 +800,15 @@ const App: React.FC = () => {
         </div>
 
         {activeUser && (
+          <div style={{ position: 'relative', width: '100%', height: '180px', overflow: 'hidden', borderRadius: '16px', marginBottom: '16px', border: '1px solid var(--border)', background: 'var(--bg-3)', cursor: 'pointer' }} onClick={() => setIsModalOpen(true)}>
+            <div className="export-card" style={{ transform: 'scale(0.35)', transformOrigin: 'top left', width: '285%', border: 'none', background: 'transparent' }}>
+              {renderCard()}
+            </div>
+            <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, transparent, var(--bg))', pointerEvents: 'none' }} />
+          </div>
+        )}
+
+        {activeUser && (
           <button className="share-btn" onClick={() => setIsModalOpen(true)} style={{ margin: '0', width: '100%' }}>
             Share card preview
           </button>
@@ -733,83 +824,7 @@ const App: React.FC = () => {
             </div>
             
             <div className="export-card" ref={posterRef}>
-               <div className="export-card-header">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    {activeUserAvatar && <img src={activeUserAvatar} crossOrigin="anonymous" style={{ width: '24px', height: '24px', borderRadius: '50%', objectFit: 'cover' }} />}
-                    <span>X Archive</span>
-                  </div>
-                  <div>@{activeUser}</div>
-               </div>
-               
-               <div style={{ display: 'flex', gap: '20px' }}>
-                  {cardOptions.followings && followings.status === 'done' && followings.data && (
-                    <div style={{ flex: 1 }}>
-                      <div className="export-section-title">OLDEST FOLLOWS</div>
-                      <div className="export-follows-grid">
-                        {followings.data.slice(0, 5).map((u, i) => (
-                          <div className="export-follow-item" key={u.userId}>
-                             <div style={{ width: '16px', color: 'var(--muted)', fontSize: '12px' }}>{i + 1}</div>
-                             {u.profileImageUrlHttps ? <img src={u.profileImageUrlHttps} crossOrigin="anonymous" className="export-tweet-media" style={{width: '32px', height: '32px', borderRadius: '50%'}} /> : <div style={{width: '32px', height: '32px', borderRadius: '50%', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold'}}>{u.name.charAt(0)}</div>}
-                             <div style={{fontWeight: 'bold'}}>@{u.username}</div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-               </div>
-
-               {cardOptions.firstTweet && firstTweet.status === 'done' && firstTweet.data && (
-                 <div>
-                   <div className="export-section-title">FIRST POST</div>
-                   <div className="export-tweet">
-                      <div className="export-tweet-text">
-                        {firstTweet.data.text.length > 100 ? firstTweet.data.text.substring(0, 100) + '...' : firstTweet.data.text}
-                        <div style={{ fontSize: '12px', color: 'var(--muted)', marginTop: '8px' }}>
-                          {new Date(firstTweet.data.createdAt).toLocaleDateString('uk-UA')} • {firstTweet.data.likeCount} likes
-                        </div>
-                      </div>
-                      {firstTweet.data.media && firstTweet.data.media[0] && (
-                        <img crossOrigin="anonymous" src={firstTweet.data.media[0].previewUrl || firstTweet.data.media[0].url} className="export-tweet-media" />
-                      )}
-                   </div>
-                 </div>
-               )}
-               {cardOptions.popularTweet && popularTweet.status === 'done' && popularTweet.data && (
-                 <div>
-                   <div className="export-section-title">FIRST TO 100 LIKES</div>
-                   <div className="export-tweet">
-                      <div className="export-tweet-text">
-                        {popularTweet.data.text.length > 100 ? popularTweet.data.text.substring(0, 100) + '...' : popularTweet.data.text}
-                        <div style={{ fontSize: '12px', color: 'var(--muted)', marginTop: '8px' }}>
-                          {new Date(popularTweet.data.createdAt).toLocaleDateString('uk-UA')} • {popularTweet.data.likeCount} likes
-                        </div>
-                      </div>
-                      {popularTweet.data.media && popularTweet.data.media[0] && (
-                        <img crossOrigin="anonymous" src={popularTweet.data.media[0].previewUrl || popularTweet.data.media[0].url} className="export-tweet-media" />
-                      )}
-                   </div>
-                 </div>
-               )}
-               {cardOptions.mentions && mentions.status === 'done' && mentions.data && (
-                 <div>
-                   <div className="export-section-title">TOP TAGGER</div>
-                   <div className="export-follow-item" style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '12px', border: '1px solid var(--border)' }}>
-                      {mentions.data[0].user.profileImageUrlHttps ? <img src={mentions.data[0].user.profileImageUrlHttps} crossOrigin="anonymous" className="export-tweet-media" style={{width: '32px', height: '32px', borderRadius: '50%'}} /> : <div style={{width: '32px', height: '32px', borderRadius: '50%', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold'}}>{mentions.data[0].user.username.charAt(0)}</div>}
-                      <div style={{fontWeight: 'bold'}}>@{mentions.data[0].user.username}</div>
-                      <div style={{ color: 'var(--accent)', fontSize: '12px', marginLeft: 'auto' }}>{mentions.data[0].count} tags</div>
-                   </div>
-                 </div>
-               )}
-               {cardOptions.sharedFollows && sharedFollows.status === 'done' && sharedFollows.data && (
-                 <div>
-                   <div className="export-section-title">TOP SHARED FOLLOW</div>
-                   <div className="export-follow-item" style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '12px', border: '1px solid var(--border)' }}>
-                      {sharedFollows.data[0].avatar ? <img src={sharedFollows.data[0].avatar} crossOrigin="anonymous" className="export-tweet-media" style={{width: '32px', height: '32px', borderRadius: '50%'}} /> : <div style={{width: '32px', height: '32px', borderRadius: '50%', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold'}}>{sharedFollows.data[0].username.charAt(0)}</div>}
-                      <div style={{fontWeight: 'bold'}}>@{sharedFollows.data[0].username}</div>
-                      <div style={{ color: 'var(--accent)', fontSize: '12px', marginLeft: 'auto' }}>{sharedFollows.data[0].commonCount} common</div>
-                   </div>
-                 </div>
-               )}
+              {renderCard()}
             </div>
             
             {/* Options Toggles */}
