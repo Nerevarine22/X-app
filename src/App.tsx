@@ -731,7 +731,10 @@ const App: React.FC = () => {
             
             <div className="export-card" ref={posterRef}>
                <div className="export-card-header">
-                  <div>X Archive</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {activeUserAvatar && <img src={activeUserAvatar} crossOrigin="anonymous" style={{ width: '24px', height: '24px', borderRadius: '50%', objectFit: 'cover' }} />}
+                    <span>X Archive</span>
+                  </div>
                   <div>@{activeUser}</div>
                </div>
                
@@ -750,12 +753,6 @@ const App: React.FC = () => {
                       </div>
                     </div>
                   )}
-                  <div style={{ flexShrink: 0 }}>
-                    <div className="export-section-title">FINDINGS</div>
-                    <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#fff' }}>
-                      {Object.values(cardOptions).filter(Boolean).length} of 5
-                    </div>
-                  </div>
                </div>
 
                {cardOptions.firstTweet && firstTweet.status === 'done' && firstTweet.data && (
@@ -764,6 +761,9 @@ const App: React.FC = () => {
                    <div className="export-tweet">
                       <div className="export-tweet-text">
                         {firstTweet.data.text.length > 100 ? firstTweet.data.text.substring(0, 100) + '...' : firstTweet.data.text}
+                        <div style={{ fontSize: '12px', color: 'var(--muted)', marginTop: '8px' }}>
+                          {new Date(firstTweet.data.createdAt).toLocaleDateString('uk-UA')} • {firstTweet.data.likeCount} likes
+                        </div>
                       </div>
                       {firstTweet.data.media && firstTweet.data.media[0] && (
                         <img crossOrigin="anonymous" src={firstTweet.data.media[0].previewUrl || firstTweet.data.media[0].url} className="export-tweet-media" />
@@ -777,6 +777,9 @@ const App: React.FC = () => {
                    <div className="export-tweet">
                       <div className="export-tweet-text">
                         {popularTweet.data.text.length > 100 ? popularTweet.data.text.substring(0, 100) + '...' : popularTweet.data.text}
+                        <div style={{ fontSize: '12px', color: 'var(--muted)', marginTop: '8px' }}>
+                          {new Date(popularTweet.data.createdAt).toLocaleDateString('uk-UA')} • {popularTweet.data.likeCount} likes
+                        </div>
                       </div>
                       {popularTweet.data.media && popularTweet.data.media[0] && (
                         <img crossOrigin="anonymous" src={popularTweet.data.media[0].previewUrl || popularTweet.data.media[0].url} className="export-tweet-media" />
