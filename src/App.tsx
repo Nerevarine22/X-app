@@ -45,7 +45,7 @@ const App: React.FC = () => {
       }
 
       // Check Local Storage Cache first
-      const cacheKey = `twitter_first_follows_${cleanUsername.toLowerCase()}`;
+      const cacheKey = `twitter_first_follows_v2_${cleanUsername.toLowerCase()}`;
       const cachedData = localStorage.getItem(cacheKey);
       if (cachedData) {
         try {
@@ -170,7 +170,7 @@ const App: React.FC = () => {
               userId: userId,
               name: user.name || '',
               username: user.userName || user.username || user.screen_name || '',
-              profileImageUrlHttps: user.profilePicture || user.profileImageUrlHttps || user.profile_image_url || '',
+              profileImageUrlHttps: user.profilePicture || user.profileImageUrlHttps || user.profile_image_url_https || user.profile_image_url || '',
               description: user.description || ''
             });
           }
