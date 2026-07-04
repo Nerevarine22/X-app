@@ -45,6 +45,10 @@ const App: React.FC = () => {
   // Toggles for card
   const [toggles, setToggles] = useState({ followings: true, firstTweet: false, popularTweet: false, mentions: false, sharedFollows: false });
 
+  // Modal and Card Options
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [cardOptions, setCardOptions] = useState({ followings: true, firstTweet: false, popularTweet: false, mentions: false, sharedFollows: false });
+
   const posterRef = useRef<HTMLDivElement>(null);
   const [isDownloading, setIsDownloading] = useState(false);
 
@@ -710,53 +714,117 @@ const App: React.FC = () => {
           <button className="see-more" onClick={runAll}>Run all queries</button>
         </div>
 
-        <div className="widget">
-          <h3 style={{ fontSize: '16px' }}>Share card preview</h3>
-          <div className="poster" ref={posterRef} style={{ background: 'var(--bg-3)' }}>
-            <div className="poster-top"><span>X Archive</span><span>@{activeUser || 'username'}</span></div>
-            <div className="poster-grid">
-              {toggles.followings && (
-                <div className="poster-item">
-                  <div className="k">Oldest follow</div>
-                  <div className="v">{followings.status === 'done' && followings.data ? `@${followings.data[0].username}` : '-'}</div>
-                </div>
-              )}
-              {toggles.firstTweet && (
-                <div className="poster-item">
-                  <div className="k">First post</div>
-                  <div className="v">{firstTweet.status === 'done' && firstTweet.data ? new Date(firstTweet.data.createdAt).toLocaleDateString() : '-'}</div>
-                </div>
-              )}
-              {toggles.popularTweet && (
-                <div className="poster-item">
-                  <div className="k">100 likes</div>
-                  <div className="v">{popularTweet.status === 'done' && popularTweet.data ? new Date(popularTweet.data.createdAt).toLocaleDateString() : '-'}</div>
-                </div>
-              )}
-              {toggles.mentions && (
-                <div className="poster-item">
-                  <div className="k">Top tagger</div>
-                  <div className="v">{mentions.status === 'done' && mentions.data ? `@${mentions.data[0].user.username}` : '-'}</div>
-                </div>
-              )}
-              {toggles.sharedFollows && (
-                <div className="poster-item">
-                  <div className="k">Shared follows</div>
-                  <div className="v">{sharedFollows.status === 'done' && sharedFollows.data ? `@${sharedFollows.data[0].username}` : '-'}</div>
-                </div>
-              )}
-              <div className="poster-item">
-                <div className="k">Findings</div>
-                <div className="v">{numFound} of 5</div>
-              </div>
+        {activeUser && (
+          <button className="share-btn" onClick={() => setIsModalOpen(true)} style={{ margin: '0', width: '100%' }}>
+            Share card preview
+          </button>
+        )}
+      </div>
+
+      {isModalOpen && (
+        <div className="modal-overlay" onClick={() => setIsModalOpen(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              Share card preview
+              <button className="close-btn" onClick={() => setIsModalOpen(false)}>✕</button>
+            </div>
+            
+            <div className="export-card" ref={posterRef}>
+               <div className="export-card-header">
+                  <div>X Archive</div>
+                  <div>@{activeUser}</div>
+               </div>
+               
+               <div style={{ display: 'flex', gap: '20px' }}>
+                  {cardOptions.followings && followings.status === 'done' && followings.data && (
+                    <div style={{ flex: 1 }}>
+                      <div className="export-section-title">OLDEST FOLLOWS</div>
+                      <div className="export-follows-grid">
+                        {followings.data.slice(0, 5).map((u, i) => (
+                          <div className="export-follow-item" key={u.userId}>
+                             <div style={{ width: '16px', color: 'var(--muted)', fontSize: '12px' }}>{i + 1}</div>
+                             {u.profileImageUrlHttps ? <img src={u.profileImageUrlHttps} crossOrigin="anonymous" className="export-tweet-media" style={{width: '32px', height: '32px', borderRadius: '50%'}} /> : <div style={{width: '32px', height: '32px', borderRadius: '50%', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold'}}>{u.name.charAt(0)}</div>}
+                             <div style={{fontWeight: 'bold'}}>@{u.username}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <div style={{ flexShrink: 0 }}>
+                    <div className="export-section-title">FINDINGS</div>
+                    <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#fff' }}>
+                      {Object.values(cardOptions).filter(Boolean).length} of 5
+                    </div>
+                  </div>
+               </div>
+
+               {cardOptions.firstTweet && firstTweet.status === 'done' && firstTweet.data && (
+                 <div>
+                   <div className="export-section-title">FIRST POST</div>
+                   <div className="export-tweet">
+                      <div className="export-tweet-text">
+                        {firstTweet.data.text.length > 100 ? firstTweet.data.text.substring(0, 100) + '...' : firstTweet.data.text}
+                      </div>
+                      {firstTweet.data.media && firstTweet.data.media[0] && (
+                        <img crossOrigin="anonymous" src={firstTweet.data.media[0].previewUrl || firstTweet.data.media[0].url} className="export-tweet-media" />
+                      )}
+                   </div>
+                 </div>
+               )}
+               {cardOptions.popularTweet && popularTweet.status === 'done' && popularTweet.data && (
+                 <div>
+                   <div className="export-section-title">FIRST TO 100 LIKES</div>
+                   <div className="export-tweet">
+                      <div className="export-tweet-text">
+                        {popularTweet.data.text.length > 100 ? popularTweet.data.text.substring(0, 100) + '...' : popularTweet.data.text}
+                      </div>
+                      {popularTweet.data.media && popularTweet.data.media[0] && (
+                        <img crossOrigin="anonymous" src={popularTweet.data.media[0].previewUrl || popularTweet.data.media[0].url} className="export-tweet-media" />
+                      )}
+                   </div>
+                 </div>
+               )}
+               {cardOptions.mentions && mentions.status === 'done' && mentions.data && (
+                 <div>
+                   <div className="export-section-title">TOP TAGGER</div>
+                   <div className="export-follow-item" style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '12px', border: '1px solid var(--border)' }}>
+                      {mentions.data[0].user.profileImageUrlHttps ? <img src={mentions.data[0].user.profileImageUrlHttps} crossOrigin="anonymous" className="export-tweet-media" style={{width: '32px', height: '32px', borderRadius: '50%'}} /> : <div style={{width: '32px', height: '32px', borderRadius: '50%', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold'}}>{mentions.data[0].user.username.charAt(0)}</div>}
+                      <div style={{fontWeight: 'bold'}}>@{mentions.data[0].user.username}</div>
+                      <div style={{ color: 'var(--accent)', fontSize: '12px', marginLeft: 'auto' }}>{mentions.data[0].count} tags</div>
+                   </div>
+                 </div>
+               )}
+               {cardOptions.sharedFollows && sharedFollows.status === 'done' && sharedFollows.data && (
+                 <div>
+                   <div className="export-section-title">TOP SHARED FOLLOW</div>
+                   <div className="export-follow-item" style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '12px', border: '1px solid var(--border)' }}>
+                      {sharedFollows.data[0].avatar ? <img src={sharedFollows.data[0].avatar} crossOrigin="anonymous" className="export-tweet-media" style={{width: '32px', height: '32px', borderRadius: '50%'}} /> : <div style={{width: '32px', height: '32px', borderRadius: '50%', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold'}}>{sharedFollows.data[0].username.charAt(0)}</div>}
+                      <div style={{fontWeight: 'bold'}}>@{sharedFollows.data[0].username}</div>
+                      <div style={{ color: 'var(--accent)', fontSize: '12px', marginLeft: 'auto' }}>{sharedFollows.data[0].commonCount} common</div>
+                   </div>
+                 </div>
+               )}
+            </div>
+            
+            {/* Options Toggles */}
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '24px' }}>
+              {Object.keys(cardOptions).map((k) => (
+                <label key={k} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', cursor: 'pointer', background: 'var(--bg-3)', padding: '6px 12px', borderRadius: '100px', border: `1px solid ${cardOptions[k as keyof typeof cardOptions] ? 'var(--accent)' : 'var(--border)'}` }}>
+                  <input type="checkbox" checked={cardOptions[k as keyof typeof cardOptions]} onChange={(e) => setCardOptions({...cardOptions, [k]: e.target.checked})} style={{ display: 'none' }} />
+                  {k === 'followings' ? 'Oldest Follow' : k === 'firstTweet' ? 'First Post' : k === 'popularTweet' ? '100 Likes' : k === 'mentions' ? 'Top Tagger' : 'Shared Follows'}
+                </label>
+              ))}
+            </div>
+
+            <button className="share-btn" style={{ width: '100%', margin: '0' }} onClick={downloadCard} disabled={isDownloading}>
+              {isDownloading ? 'Processing...' : 'Combine & download'}
+            </button>
+            <div style={{ fontSize: '12px', color: 'var(--muted)', marginTop: '12px', textAlign: 'center' }}>
+              Includes only toggled-on findings
             </div>
           </div>
-          <button className="share-btn" onClick={downloadCard} disabled={isDownloading || !activeUser}>
-            {isDownloading ? 'Processing...' : 'Combine & download'}
-          </button>
-          <div className="foot-note">Includes only toggled-on findings</div>
         </div>
-      </div>
+      )}
     </div>
   );
 };
