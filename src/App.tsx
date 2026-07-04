@@ -48,6 +48,7 @@ const App: React.FC = () => {
   // Modal and Card Options
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [cardOptions, setCardOptions] = useState({ followings: true, firstTweet: false, popularTweet: false, mentions: false, sharedFollows: false });
+  const [hasDownloaded, setHasDownloaded] = useState(false);
 
   const posterRef = useRef<HTMLDivElement>(null);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -71,6 +72,7 @@ const App: React.FC = () => {
     setMentions({ status: 'idle', data: null });
     setSharedFollows({ status: 'idle', data: null });
     setActiveUserAvatar('');
+    setHasDownloaded(false);
 
     // Auto-run selected toggle(s)
     if (toggles.followings) runFollowings(clean);
@@ -346,6 +348,7 @@ const App: React.FC = () => {
       link.download = `archive-${activeUser || 'card'}.png`;
       link.href = dataUrl;
       link.click();
+      setHasDownloaded(true);
     } catch (err) {
       alert('Error generating image');
     } finally {
@@ -826,9 +829,22 @@ const App: React.FC = () => {
               ))}
             </div>
 
-            <button className="share-btn" style={{ width: '100%', margin: '0' }} onClick={downloadCard} disabled={isDownloading}>
-              {isDownloading ? 'Processing...' : 'Combine & download'}
-            </button>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button className="share-btn" style={{ flex: 1, margin: '0' }} onClick={downloadCard} disabled={isDownloading}>
+                {isDownloading ? 'Processing...' : 'Combine & download'}
+              </button>
+              {hasDownloaded && (
+                <a 
+                  className="share-btn" 
+                  style={{ flex: 1, margin: '0', background: '#1d9bf0', color: '#fff', textDecoration: 'none', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`I just exported my X Archive for @${activeUser}! 🚀\n\nCheck your own stats and earliest follows.\n#XArchive`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Tweet Result
+                </a>
+              )}
+            </div>
             <div style={{ fontSize: '12px', color: 'var(--muted)', marginTop: '12px', textAlign: 'center' }}>
               Includes only toggled-on findings
             </div>
