@@ -422,7 +422,7 @@ const App: React.FC = () => {
                   {followings.status === 'done' && followings.data && followings.data.length > 0 ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '10px' }}>
                       {followings.data.map((u, i) => (
-                        <div key={u.userId} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(255,255,255,0.03)', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                        <a href={`https://x.com/${u.username}`} target="_blank" rel="noopener noreferrer" key={u.userId} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(255,255,255,0.03)', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', textDecoration: 'none', color: 'inherit' }}>
                           <div style={{ width: '20px', fontSize: '12px', color: 'var(--muted)', fontWeight: 'bold' }}>{i + 1}</div>
                           {u.profileImageUrlHttps ? (
                             <img src={u.profileImageUrlHttps} crossOrigin="anonymous" style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }} />
@@ -433,7 +433,7 @@ const App: React.FC = () => {
                             <div style={{ fontWeight: 'bold', fontSize: '14px', color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{u.name}</div>
                             <div style={{ fontSize: '12.5px', color: 'var(--muted)' }}>@{u.username}</div>
                           </div>
-                        </div>
+                        </a>
                       ))}
                     </div>
                   ) : followings.status === 'loading' ? (
@@ -542,7 +542,7 @@ const App: React.FC = () => {
                   {mentions.status === 'done' && mentions.data && mentions.data.length > 0 ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '10px' }}>
                       {mentions.data.map((m, i) => (
-                        <div key={m.user.userId} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(255,255,255,0.03)', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                        <a href={`https://x.com/${m.user.username}`} target="_blank" rel="noopener noreferrer" key={m.user.userId} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(255,255,255,0.03)', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', textDecoration: 'none', color: 'inherit' }}>
                           <div style={{ width: '20px', fontSize: '12px', color: 'var(--muted)', fontWeight: 'bold' }}>{i + 1}</div>
                           {m.user.profileImageUrlHttps ? (
                             <img src={m.user.profileImageUrlHttps} crossOrigin="anonymous" style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }} />
@@ -554,7 +554,7 @@ const App: React.FC = () => {
                             <div style={{ fontSize: '12.5px', color: 'var(--muted)' }}>@{m.user.username}</div>
                           </div>
                           <div style={{ fontSize: '13px', color: 'var(--accent)', fontWeight: 'bold' }}>{m.count} tags</div>
-                        </div>
+                        </a>
                       ))}
                     </div>
                   ) : mentions.status === 'loading' ? (
@@ -593,14 +593,14 @@ const App: React.FC = () => {
                   {sharedFollows.status === 'done' && sharedFollows.data && sharedFollows.data.length > 0 ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '10px' }}>
                       {sharedFollows.data.map((u, i) => (
-                        <div key={u.username} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(255,255,255,0.03)', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                        <a href={`https://x.com/${u.username}`} target="_blank" rel="noopener noreferrer" key={u.username} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(255,255,255,0.03)', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', textDecoration: 'none', color: 'inherit' }}>
                           <div style={{ width: '20px', fontSize: '12px', color: 'var(--muted)', fontWeight: 'bold' }}>{i + 1}</div>
                           <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>{u.username.charAt(0)}</div>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ fontWeight: 'bold', fontSize: '14px', color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>@{u.username}</div>
                             <div style={{ fontSize: '12.5px', color: 'var(--muted)' }}>{u.commonCount} shared follows</div>
                           </div>
-                        </div>
+                        </a>
                       ))}
                     </div>
                   ) : sharedFollows.status === 'loading' ? (
