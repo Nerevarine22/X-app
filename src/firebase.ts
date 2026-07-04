@@ -64,7 +64,7 @@ export const saveFollowingsToFirebaseCache = async (username: string, followings
 export const getCachedTweetFromFirebase = async (username: string, type: 'first' | 'popular') => {
   if (!db) return null;
   try {
-    const docRef = doc(db, "twitter_first_tweets", `${username.toLowerCase()}_${type}`);
+    const docRef = doc(db, "twitter_first_tweets", `${username.toLowerCase()}_${type}_v2`);
     const docSnap = await getDoc(docRef);
 
     if (docSnap.exists()) {
@@ -81,7 +81,7 @@ export const getCachedTweetFromFirebase = async (username: string, type: 'first'
 export const saveTweetToFirebaseCache = async (username: string, type: 'first' | 'popular', tweet: any) => {
   if (!db) return;
   try {
-    const docRef = doc(db, "twitter_first_tweets", `${username.toLowerCase()}_${type}`);
+    const docRef = doc(db, "twitter_first_tweets", `${username.toLowerCase()}_${type}_v2`);
     await setDoc(docRef, { 
       tweet, 
       cachedAt: new Date().toISOString() 
