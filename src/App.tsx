@@ -188,7 +188,6 @@ const App: React.FC = () => {
     const startYear = isPopular ? Math.max(createdYear, 2022) : createdYear;
 
     let targetYear = null;
-    let targetMonth = null;
     
     // Step 1: Find the Year
     for (let y = startYear; y <= currentYear; y++) {
@@ -223,7 +222,6 @@ const App: React.FC = () => {
       const data = await res.json();
       const tweets = data.tweets || [];
       if (tweets.length > 0) {
-        targetMonth = m;
         // Since we found the month, we just fetch all pages for this month and find the absolute oldest
         setProgressText(`Знайдено місяць! Завантажую всі твіти за ${monthStr}.${targetYear}...`);
         
