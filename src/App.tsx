@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Search, Loader2, Users, ArrowRight, MessageCircle } from 'lucide-react';
-import { getCachedFollowingsFromFirebase, saveFollowingsToFirebaseCache } from './firebase';
+import { getCachedFollowingsFromFirebase, saveFollowingsToFirebaseCache, findSimilarUsersInFirebase, SimilarUser } from './firebase';
 
 interface TwitterUser {
   userId: string;
@@ -15,6 +15,7 @@ const App: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [followings, setFollowings] = useState<TwitterUser[]>([]);
+  const [similarUsers, setSimilarUsers] = useState<SimilarUser[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
 
   const [progressText, setProgressText] = useState('');
@@ -31,6 +32,7 @@ const App: React.FC = () => {
     setError(null);
     setHasSearched(true);
     setFollowings([]);
+    setSimilarUsers([]);
     setProgressText('Підключаюся до TwitterAPI.io...');
 
     try {
@@ -64,14 +66,21 @@ const App: React.FC = () => {
       // Check Global Firebase Cache
       setProgressText('Перевіряю глобальний кеш (Firebase)...');
       const firebaseCache = await getCachedFollowingsFromFirebase(cleanUsername);
-      if (firebaseCache && firebaseCache.length > 0) {
-        setProgressText('Завантажено з глобального кешу 🔥');
-        setFollowings(firebaseCache);
+      if (firebaseCache && firebaseCache.followings && firebaseCache.followings.length > 0) {
+        setProgressText('Завантажено з глобального кешу 🔥. Шукаю збіги...');
+        setFollowings(firebaseCache.followings);
         
         // Update local storage too so next time it's instant
         try {
-          localStorage.setItem(cacheKey, JSON.stringify(firebaseCache));
+          localStorage.setItem(cacheKey, JSON.stringify(firebaseCache.followings));
         } catch (e) {}
+        
+        // Find similar users in Firebase
+        const usernamesSet = new Set(firebaseCache.allFollowingsUsernames || []);
+        if (usernamesSet.size > 0) {
+          const similar = await findSimilarUsersInFirebase(cleanUsername, usernamesSet as Set<string>);
+          setSimilarUsers(similar);
+        }
         
         setLoading(false);
         return;
@@ -201,7 +210,14 @@ const App: React.FC = () => {
       }
 
       // Save to Global Firebase Cache
-      await saveFollowingsToFirebaseCache(cleanUsername, oldestFollowings);
+      const allUsernames = allFollowings.map(u => u.username);
+      await saveFollowingsToFirebaseCache(cleanUsername, oldestFollowings, allUsernames);
+      
+      // Find similar users
+      setProgressText('Шукаю схожі профілі в базі...');
+      const usernamesSet = new Set(allUsernames);
+      const similar = await findSimilarUsersInFirebase(cleanUsername, usernamesSet);
+      setSimilarUsers(similar);
       
     } catch (err: any) {
       setError(err.message || 'An error occurred while fetching data');

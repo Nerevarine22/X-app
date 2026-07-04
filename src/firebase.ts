@@ -33,7 +33,11 @@ export const getCachedFollowingsFromFirebase = async (username: string) => {
     const docSnap = await getDoc(docRef);
 
     if (docSnap.exists()) {
-      return docSnap.data().followings;
+      const data = docSnap.data();
+      return { 
+        followings: data.followings, 
+        allFollowingsUsernames: data.allFollowingsUsernames || [] 
+      };
     } else {
       return null;
     }
@@ -43,12 +47,59 @@ export const getCachedFollowingsFromFirebase = async (username: string) => {
   }
 };
 
-export const saveFollowingsToFirebaseCache = async (username: string, followings: any[]) => {
+export const saveFollowingsToFirebaseCache = async (username: string, followings: any[], allFollowingsUsernames: string[]) => {
   if (!db) return;
   try {
     const docRef = doc(db, "twitter_first_follows", username.toLowerCase());
-    await setDoc(docRef, { followings, cachedAt: new Date().toISOString() });
+    await setDoc(docRef, { 
+      followings, 
+      allFollowingsUsernames,
+      cachedAt: new Date().toISOString() 
+    }, { merge: true });
   } catch (error) {
     console.error("Error writing to Firebase cache:", error);
+  }
+};
+
+import { collection, getDocs } from "firebase/firestore";
+
+export interface SimilarUser {
+  username: string;
+  commonCount: number;
+}
+
+export const findSimilarUsersInFirebase = async (currentUsername: string, currentUsernamesSet: Set<string>): Promise<SimilarUser[]> => {
+  if (!db) return [];
+  try {
+    const querySnapshot = await getDocs(collection(db, "twitter_first_follows"));
+    const similarUsers: SimilarUser[] = [];
+
+    querySnapshot.forEach((doc) => {
+      const dbUsername = doc.id;
+      if (dbUsername === currentUsername.toLowerCase()) return; // Skip self
+      
+      const data = doc.data();
+      const otherUsernames = data.allFollowingsUsernames as string[] || [];
+      
+      let commonCount = 0;
+      for (const username of otherUsernames) {
+        if (currentUsernamesSet.has(username)) {
+          commonCount++;
+        }
+      }
+
+      if (commonCount > 0) {
+        similarUsers.push({
+          username: dbUsername,
+          commonCount
+        });
+      }
+    });
+
+    // Sort by most common first, return top 3
+    return similarUsers.sort((a, b) => b.commonCount - a.commonCount).slice(0, 3);
+  } catch (error) {
+    console.error("Error finding similar users:", error);
+    return [];
   }
 };
