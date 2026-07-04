@@ -115,6 +115,10 @@ const App: React.FC = () => {
         console.warn('Pre-check failed, continuing...', err);
       }
 
+      // Add delay after pre-check to respect the 1 req / 5 seconds limit
+      setProgressText('Очікування обходу лімітів API (5 сек)...');
+      await new Promise(resolve => setTimeout(resolve, 5500));
+
       const allFollowings: TwitterUser[] = [];
       const seenUserIds = new Set();
       let cursor = null;
@@ -179,8 +183,9 @@ const App: React.FC = () => {
           break;
         }
 
-        // Small delay to prevent hitting rate limits too fast
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // Delay 5.5 seconds to respect the free tier QPS limit (1 request every 5 seconds)
+        setProgressText(`Отримано ${allFollowings.length}. Очікування 5 сек...`);
+        await new Promise(resolve => setTimeout(resolve, 5500));
       }
       
       setProgressText(`Завершено! Отримано ${allFollowings.length} підписок.`);
