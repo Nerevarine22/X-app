@@ -91,6 +91,41 @@ export const saveTweetToFirebaseCache = async (username: string, type: 'first' |
   }
 };
 
+export interface MentionUser {
+  user: any;
+  count: number;
+}
+
+export const getCachedMentionsFromFirebase = async (username: string): Promise<MentionUser[] | null> => {
+  if (!db) return null;
+  try {
+    const docRef = doc(db, "twitter_top_mentions", username.toLowerCase());
+    const docSnap = await getDoc(docRef);
+
+    if (docSnap.exists()) {
+      return docSnap.data().mentions;
+    } else {
+      return null;
+    }
+  } catch (error) {
+    console.error("Error reading mentions from Firebase cache:", error);
+    return null;
+  }
+};
+
+export const saveMentionsToFirebaseCache = async (username: string, mentions: MentionUser[]) => {
+  if (!db) return;
+  try {
+    const docRef = doc(db, "twitter_top_mentions", username.toLowerCase());
+    await setDoc(docRef, { 
+      mentions, 
+      cachedAt: new Date().toISOString() 
+    }, { merge: true });
+  } catch (error) {
+    console.error("Error writing mentions to Firebase cache:", error);
+  }
+};
+
 export interface SimilarUser {
   username: string;
   commonCount: number;

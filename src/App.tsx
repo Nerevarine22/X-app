@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Search, Loader2, Users, ArrowRight, MessageCircle, FileText, TrendingUp } from 'lucide-react';
-import { getCachedFollowingsFromFirebase, saveFollowingsToFirebaseCache, findSimilarUsersInFirebase, getCachedTweetFromFirebase, saveTweetToFirebaseCache } from './firebase';
-import type { SimilarUser } from './firebase';
+import { Search, Loader2, Users, ArrowRight, MessageCircle, FileText, TrendingUp, Megaphone } from 'lucide-react';
+import { getCachedFollowingsFromFirebase, saveFollowingsToFirebaseCache, findSimilarUsersInFirebase, getCachedTweetFromFirebase, saveTweetToFirebaseCache, getCachedMentionsFromFirebase, saveMentionsToFirebaseCache } from './firebase';
+import type { SimilarUser, MentionUser } from './firebase';
 
 interface TwitterUser {
   userId: string;
@@ -20,7 +20,7 @@ interface Tweet {
   retweetCount: number;
 }
 
-type Mode = 'followings' | 'first_tweet' | 'popular_tweet';
+type Mode = 'followings' | 'first_tweet' | 'popular_tweet' | 'mentions';
 
 const App: React.FC = () => {
   const [mode, setMode] = useState<Mode>('followings');
@@ -35,8 +35,12 @@ const App: React.FC = () => {
   const [similarUsers, setSimilarUsers] = useState<SimilarUser[]>([]);
 
   // States for tweet modes
+  // States for tweet modes
   const [foundTweet, setFoundTweet] = useState<Tweet | null>(null);
   const [author, setAuthor] = useState<TwitterUser | null>(null);
+
+  // States for mentions mode
+  const [topMentions, setTopMentions] = useState<MentionUser[]>([]);
 
   const getApiKey = () => {
     const apiKey = import.meta.env.VITE_TWITTERAPI_IO_KEY || import.meta.env.VITE_TWEXAPI_KEY;
@@ -271,6 +275,88 @@ const App: React.FC = () => {
     }
   };
 
+  const fetchMentions = async (cleanUsername: string) => {
+    setTopMentions([]);
+    setProgressText('Перевіряю глобальний кеш (Firebase)...');
+    
+    const cachedMentions = await getCachedMentionsFromFirebase(cleanUsername);
+    if (cachedMentions) {
+      setProgressText('Завантажено з глобального кешу 🔥');
+      setTopMentions(cachedMentions);
+      return;
+    }
+
+    setProgressText('Завантажую згадки (це може зайняти до хвилини)...');
+    
+    let allMentions: any[] = [];
+    let cursor = '';
+    let hasNext = true;
+    let pageCount = 0;
+    const maxPages = 10;
+    const query = `@${cleanUsername}`;
+    
+    while (hasNext && pageCount < maxPages) {
+      pageCount++;
+      setProgressText(`Завантажую сторінку ${pageCount} з ${maxPages}...`);
+      
+      let url = `/api/twitter/tweet/advanced_search?query=${encodeURIComponent(query)}`;
+      if (cursor) url += `&cursor=${encodeURIComponent(cursor)}`;
+      
+      const r = await fetch(url, { headers: { 'X-API-Key': getApiKey() } });
+      const d = await r.json();
+      
+      if (!r.ok || (d.code !== 0 && d.status !== 'success' && d.code !== 200)) {
+        throw new Error(`API Error: ${d?.msg || d?.message || 'Unknown error'}`);
+      }
+
+      const pagedTweets = d.tweets || [];
+      allMentions = [...allMentions, ...pagedTweets];
+      
+      if (d.has_next_page && d.next_cursor) {
+        cursor = d.next_cursor;
+      } else {
+        hasNext = false;
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
+    
+    setProgressText('Аналізую авторів...');
+    const userMap = new Map<string, MentionUser>();
+    
+    for (const tweet of allMentions) {
+      const authorObj = tweet.author;
+      if (authorObj) {
+        const authorUsername = authorObj.userName || authorObj.screen_name;
+        if (authorUsername && authorUsername.toLowerCase() !== cleanUsername.toLowerCase()) {
+          if (!userMap.has(authorUsername)) {
+            userMap.set(authorUsername, {
+              user: {
+                userId: authorObj.id || authorObj.rest_id,
+                name: authorObj.name,
+                username: authorUsername,
+                profileImageUrlHttps: authorObj.profilePicture || authorObj.profile_image_url_https
+              },
+              count: 0
+            });
+          }
+          userMap.get(authorUsername)!.count++;
+        }
+      }
+    }
+    
+    const sortedMentions = Array.from(userMap.values())
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+      
+    if (sortedMentions.length === 0) {
+      throw new Error('Не знайдено жодної згадки (або профіль прихований)');
+    }
+      
+    setTopMentions(sortedMentions);
+    await saveMentionsToFirebaseCache(cleanUsername, sortedMentions);
+  };
+
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanUsername = username.trim().replace(/^@/, '');
@@ -283,6 +369,8 @@ const App: React.FC = () => {
     try {
       if (mode === 'followings') {
         await fetchFollowings(cleanUsername);
+      } else if (mode === 'mentions') {
+        await fetchMentions(cleanUsername);
       } else {
         await findTweet(cleanUsername, mode === 'popular_tweet');
       }
@@ -323,6 +411,12 @@ const App: React.FC = () => {
           style={{ padding: '0.75rem 1.5rem', borderRadius: '12px', background: mode === 'popular_tweet' ? 'var(--primary)' : 'rgba(255,255,255,0.05)', color: 'white', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', transition: 'all 0.2s' }}
         >
           <TrendingUp size={18} /> 100 Лайків
+        </button>
+        <button 
+          onClick={() => { setMode('mentions'); setHasSearched(false); }}
+          style={{ padding: '0.75rem 1.5rem', borderRadius: '12px', background: mode === 'mentions' ? 'var(--primary)' : 'rgba(255,255,255,0.05)', color: 'white', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', transition: 'all 0.2s' }}
+        >
+          <Megaphone size={18} /> Топ Згадки
         </button>
       </div>
 
@@ -490,6 +584,57 @@ const App: React.FC = () => {
           <a href={`https://twitter.com/${author.username}/status/${foundTweet.id}`} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', marginTop: '1.5rem', padding: '0.5rem 1rem', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', color: 'var(--primary)', textDecoration: 'none' }}>
             Відкрити в Twitter →
           </a>
+        </div>
+      )}
+
+      {/* Render Mentions Mode */}
+      {mode === 'mentions' && hasSearched && !loading && !error && topMentions.length === 0 && (
+        <div className="glass-panel" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+          <Megaphone size={48} style={{ opacity: 0.2, margin: '0 auto 1rem' }} />
+          <p>Не знайдено жодної згадки.</p>
+        </div>
+      )}
+
+      {mode === 'mentions' && topMentions.length > 0 && (
+        <div className="delay-200" style={{ animation: 'fadeIn 0.4s ease-out 200ms forwards' }}>
+          <h2 style={{ fontSize: '1.25rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Megaphone size={20} color="var(--primary)" /> 
+            Топ-10 Фанатів (найчастіші згадки)
+          </h2>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            {topMentions.map((mention, index) => {
+              const u = mention.user;
+              let medal = '';
+              if (index === 0) medal = '🥇 ';
+              else if (index === 1) medal = '🥈 ';
+              else if (index === 2) medal = '🥉 ';
+
+              return (
+                <div key={u.userId} className="glass-panel" style={{ padding: '1.5rem', display: 'flex', alignItems: 'center', gap: '1.5rem', cursor: 'pointer' }}>
+                  <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: index < 3 ? 'linear-gradient(45deg, var(--primary), #8a2be2)' : 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: index < 3 ? 'white' : 'var(--text-muted)', fontSize: '1.1rem' }}>
+                    {medal || (index + 1)}
+                  </div>
+                  
+                  {u.profileImageUrlHttps ? (
+                    <img src={u.profileImageUrlHttps} alt={u.name} style={{ width: '56px', height: '56px', borderRadius: '50%', objectFit: 'cover' }} />
+                  ) : (
+                    <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', fontWeight: 'bold' }}>
+                      {u.name?.charAt(0) || '?'}
+                    </div>
+                  )}
+                  
+                  <div style={{ flex: 1 }}>
+                    <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '0.25rem' }}>{u.name}</h3>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>@{u.username}</p>
+                  </div>
+                  
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(29, 161, 242, 0.1)', color: 'var(--primary)', padding: '0.5rem 1rem', borderRadius: '20px', fontWeight: 'bold' }}>
+                    {mention.count} згадок
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
