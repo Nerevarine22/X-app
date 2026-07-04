@@ -436,7 +436,7 @@ const App: React.FC = () => {
         {activeUser && (
           <>
             {/* Oldest Follow */}
-            {(toggles.followings || followings.status !== 'idle') && (
+            {toggles.followings && (
             <div className="tweet">
               {activeUserAvatar ? <img src={activeUserAvatar} className="av" /> : <div className="av"></div>}
               <div className="tweet-body">
@@ -486,7 +486,7 @@ const App: React.FC = () => {
             )}
 
             {/* First Post */}
-            {(toggles.firstTweet || firstTweet.status !== 'idle') && (
+            {toggles.firstTweet && (
             <div className="tweet">
               {activeUserAvatar ? <img src={activeUserAvatar} className="av" /> : <div className="av"></div>}
               <div className="tweet-body">
@@ -534,7 +534,7 @@ const App: React.FC = () => {
             )}
 
             {/* 100 Likes */}
-            {(toggles.popularTweet || popularTweet.status !== 'idle') && (
+            {toggles.popularTweet && (
             <div className="tweet">
               {activeUserAvatar ? <img src={activeUserAvatar} className="av" /> : <div className="av"></div>}
               <div className="tweet-body">
@@ -582,7 +582,7 @@ const App: React.FC = () => {
             )}
 
             {/* Mentions */}
-            {(toggles.mentions || mentions.status !== 'idle') && (
+            {toggles.mentions && (
             <div className="tweet">
               {activeUserAvatar ? <img src={activeUserAvatar} className="av" /> : <div className="av"></div>}
               <div className="tweet-body">
@@ -633,7 +633,7 @@ const App: React.FC = () => {
             )}
 
             {/* Shared Follows */}
-            {(toggles.sharedFollows || sharedFollows.status !== 'idle') && (
+            {toggles.sharedFollows && (
             <div className="tweet">
               {activeUserAvatar ? <img src={activeUserAvatar} className="av" /> : <div className="av"></div>}
               <div className="tweet-body">
