@@ -565,7 +565,7 @@ const App: React.FC = () => {
             
             <div style={{ textAlign: 'center', marginBottom: '2rem', position: 'relative', zIndex: 1 }}>
               <h3 style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0 0 0.5rem 0', color: 'white' }}>Топ 5 перших підписок</h3>
-              <p style={{ color: 'var(--primary)', margin: 0, fontWeight: 500, fontSize: '1.1rem' }}>@{username}</p>
+              <p style={{ color: 'var(--primary)', margin: 0, fontWeight: 500, fontSize: '1.1rem' }}>@{username.trim().replace(/^@/, '')}</p>
             </div>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', position: 'relative', zIndex: 1 }}>
@@ -602,11 +602,6 @@ const App: React.FC = () => {
                     <h4 style={{ fontSize: '1.1rem', fontWeight: 600, margin: '0 0 0.25rem 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: 'white' }}>{user.name}</h4>
                     <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: '0.9rem' }}>@{user.username}</p>
                   </div>
-                  
-                  {/* Keep the original twitter link but hide it when generating image (html-to-image handles it visually anyway but good for UI) */}
-                  <a href={`https://twitter.com/${user.username}`} target="_blank" rel="noopener noreferrer" style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', transition: 'all 0.2s' }}>
-                    <ArrowRight size={16} />
-                  </a>
                 </div>
               ))}
             </div>
