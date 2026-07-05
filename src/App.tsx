@@ -150,7 +150,8 @@ const App: React.FC = () => {
               userId,
               name: user.name || '',
               username: user.userName || user.username || user.screen_name || '',
-              profileImageUrlHttps: user.profilePicture || user.profileImageUrlHttps || user.profile_image_url_https || user.avatar || ''
+              profileImageUrlHttps: user.profilePicture || user.profileImageUrlHttps || user.profile_image_url_https || user.avatar || '',
+              description: user.description || user.bio || ''
             });
           }
         }
@@ -430,11 +431,30 @@ const App: React.FC = () => {
     <>
       <div className="p-head">
         <div className="p-brand">
-          <div className="av"></div>
+          {activeUserAvatar ? <img crossOrigin="anonymous" referrerPolicy="no-referrer" src={activeUserAvatar} className="av" /> : <div className="av"></div>}
           <span className="name">X Archive</span>
         </div>
         <span className="handle">@{activeUser}</span>
       </div>
+
+      {cardOptions.followings && followings.status === 'done' && followings.data && (
+        <div className="tile">
+          <div className="label">Oldest follows</div>
+          <div className="follow-stack">
+            {[...followings.data].reverse().slice(0, 5).map((u, i) => (
+              <div key={i} className="follow-row">
+                {u.profileImageUrlHttps 
+                  ? <img crossOrigin="anonymous" referrerPolicy="no-referrer" src={u.profileImageUrlHttps} className="av" /> 
+                  : <div className="av" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '24px' }}>{u.name.charAt(0)}</div>}
+                <div className="follow-info">
+                  <div className="uname">@{u.username}</div>
+                  {u.description && <div className="bio">{u.description}</div>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {cardOptions.popularTweet && popularTweet.status === 'done' && popularTweet.data && (
         <div className="tile featured">
@@ -454,30 +474,17 @@ const App: React.FC = () => {
         </div>
       )}
 
-      <div className="row2">
-        {cardOptions.followings && followings.status === 'done' && followings.data && (
-          <div className="tile">
-            <div className="label">Oldest follows</div>
-            <div className="stack-avs">
-              {[...followings.data].reverse().slice(0, 5).map((u, i) => (
-                u.profileImageUrlHttps 
-                  ? <img key={i} crossOrigin="anonymous" referrerPolicy="no-referrer" src={u.profileImageUrlHttps} className="a" /> 
-                  : <div key={i} className="a" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '15px' }}>{u.name.charAt(0)}</div>
-              ))}
-            </div>
-            <div className="sub">@{followings.data[followings.data.length - 1]?.username} {followings.data.length > 1 ? `+${followings.data.length - 1} more` : ''} · since day 1</div>
-          </div>
-        )}
-        
-        {cardOptions.firstTweet && firstTweet.status === 'done' && firstTweet.data && (
+      {cardOptions.firstTweet && firstTweet.status === 'done' && firstTweet.data && (
+        <div className="row2">
           <div className="tile">
             <div className="label">First post</div>
             <div className="small-quote">"{firstTweet.data.text.length > 80 ? firstTweet.data.text.substring(0, 80) + '...' : firstTweet.data.text}"</div>
             <div className="sub">{new Date(firstTweet.data.createdAt).toLocaleDateString('uk-UA')} · {firstTweet.data.likeCount} likes</div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
+      {((cardOptions.mentions && mentions.status === 'done' && mentions.data) || (cardOptions.sharedFollows && sharedFollows.status === 'done' && sharedFollows.data)) && (
       <div className="row2">
         {cardOptions.mentions && mentions.status === 'done' && mentions.data && (
           <div className="tile">
@@ -501,6 +508,7 @@ const App: React.FC = () => {
           </div>
         )}
       </div>
+      )}
 
       {cardOptions.activity && activity.status === 'done' && activity.data && (
         <div className="tile">

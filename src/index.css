@@ -279,6 +279,47 @@ body {
 .featured .meta svg{width:20px; height:20px; fill:var(--heart);}
 .thumb{width:87px;height:87px;border-radius:15px; flex-shrink:0; background:linear-gradient(135deg,#3730a3,#7c3aed); object-fit: cover;}
 
+.follow-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.follow-row {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.follow-row .av {
+  width: 63px;
+  height: 63px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, #1d9bf0, #ffd400);
+  object-fit: cover;
+}
+.follow-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+.follow-info .uname {
+  font-size: 28px;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.follow-info .bio {
+  font-size: 24px;
+  color: var(--muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 .row2{display:flex; gap:15px;}
 .row2 .tile{flex:1; min-width:0;}
 .stack-avs{display:flex; margin-bottom:12px;}
