@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Search, Loader2, Play, Bookmark, Download, Settings, Clock, BadgeCheck, CheckCircle2 } from 'lucide-react';
+import { Search, Loader2, Play, Bookmark, Download, Settings, Clock, CheckCircle2 } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import { getCachedFollowingsFromFirebase, saveFollowingsToFirebaseCache, findSimilarUsersInFirebase, getCachedTweetFromFirebase, saveTweetToFirebaseCache, getCachedMentionsFromFirebase, saveMentionsToFirebaseCache } from './firebase';
 import type { SimilarUser, MentionUser } from './firebase';
@@ -482,7 +482,7 @@ const App: React.FC = () => {
         <div className="rail-item"><span className="rail-icon"><Download /></span> Downloads</div>
         <div className="rail-item"><span className="rail-icon"><Settings /></span> Settings</div>
         
-        <button className="rail-post" onClick={(e) => {
+        <button className="rail-post" onClick={() => {
           const input = document.getElementById('search-input') as HTMLInputElement;
           if (input && input.value) {
             initSearch({ preventDefault: () => {} } as any);
