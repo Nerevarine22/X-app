@@ -43,7 +43,7 @@ const App: React.FC = () => {
   const [sharedFollows, setSharedFollows] = useState<QueryState<SimilarUser[]>>({ status: 'idle', data: null });
 
   // Toggles for card
-  const [toggles, setToggles] = useState({ followings: true, firstTweet: true, popularTweet: true, mentions: true, sharedFollows: true });
+  const [toggles, setToggles] = useState({ followings: true, firstTweet: false, popularTweet: false, mentions: false, sharedFollows: false });
   const [showNotification, setShowNotification] = useState(false);
 
   // Modal and Card Options
