@@ -718,6 +718,17 @@ const App: React.FC = () => {
                   ) : (
                     <>Run this query to build a word cloud from recent posts.</>
                   )}
+                </div>
+                <div className="tweet-actions">
+                  {words.status === 'idle' || words.status === 'error' ? (
+                    <div className="action" onClick={() => runActivityAndWords(activeUser)}><Play size={18} /><span>Run query</span></div>
+                  ) : (
+                    <div className="action" style={{ color: 'var(--accent)' }}><CheckCircle2 size={18} /><span>Completed</span></div>
+                  )}
+                </div>
+              </div>
+            </div>
+            )}
             {/* Oldest Follow */}
             {toggles.followings && (
             <div className="tweet">
@@ -959,18 +970,6 @@ const App: React.FC = () => {
                 <div className="tweet-actions">
                   {sharedFollows.status === 'idle' || sharedFollows.status === 'error' ? (
                     <div className="action" onClick={() => runSharedFollows(activeUser)}><Play size={18} /><span>Run query</span></div>
-                  ) : (
-                    <div className="action" style={{ color: 'var(--accent)' }}><CheckCircle2 size={18} /><span>Completed</span></div>
-                  )}
-                </div>
-              </div>
-            </div>
-            )}
-
-                </div>
-                <div className="tweet-actions">
-                  {words.status === 'idle' || words.status === 'error' ? (
-                    <div className="action" onClick={() => runActivityAndWords(activeUser)}><Play size={18} /><span>Run query</span></div>
                   ) : (
                     <div className="action" style={{ color: 'var(--accent)' }}><CheckCircle2 size={18} /><span>Completed</span></div>
                   )}
