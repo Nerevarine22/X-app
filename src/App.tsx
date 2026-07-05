@@ -489,7 +489,7 @@ const App: React.FC = () => {
           )}
         </div>
         <div className="rail-item"><span className="rail-icon"><Bookmark /></span> Bookmarks</div>
-        <div className="rail-item"><span className="rail-icon"><Download /></span> Downloads</div>
+        <div className="rail-item" onClick={() => setIsModalOpen(true)}><span className="rail-icon"><Download /></span> Downloads</div>
         <div className="rail-item"><span className="rail-icon"><Settings /></span> Settings</div>
         
         <button className="rail-post" onClick={() => {
