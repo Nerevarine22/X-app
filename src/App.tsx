@@ -354,13 +354,16 @@ const App: React.FC = () => {
           <div style={{ flex: 1 }}>
             <div className="export-section-title">OLDEST FOLLOWS</div>
             <div className="export-follows-grid">
-              {followings.data.slice(0, 5).map((u, i) => (
+              {[...followings.data].reverse().map((u, i) => {
+                const rank = followings.data!.length - i;
+                return (
                 <div className="export-follow-item" key={u.userId}>
-                   <div style={{ width: '16px', color: 'var(--muted)', fontSize: '12px' }}>{i + 1}</div>
-                   {u.profileImageUrlHttps ? <img src={u.profileImageUrlHttps} crossOrigin="anonymous" className="export-tweet-media" style={{width: '32px', height: '32px', borderRadius: '50%'}} /> : <div style={{width: '32px', height: '32px', borderRadius: '50%', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold'}}>{u.name.charAt(0)}</div>}
+                   <div style={{ width: '16px', color: 'var(--muted)', fontSize: '12px' }}>{rank}</div>
+                   {u.profileImageUrlHttps ? <img src={u.profileImageUrlHttps} crossOrigin="anonymous" referrerPolicy="no-referrer" className="export-tweet-media" style={{width: '32px', height: '32px', borderRadius: '50%'}} /> : <div style={{width: '32px', height: '32px', borderRadius: '50%', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold'}}>{u.name.charAt(0)}</div>}
                    <div style={{fontWeight: 'bold'}}>@{u.username}</div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
@@ -377,7 +380,7 @@ const App: React.FC = () => {
               </div>
             </div>
             {firstTweet.data.media && firstTweet.data.media[0] && (
-              <img crossOrigin="anonymous" src={firstTweet.data.media[0].previewUrl || firstTweet.data.media[0].url} className="export-tweet-media" />
+              <img crossOrigin="anonymous" referrerPolicy="no-referrer" src={firstTweet.data.media[0].previewUrl || firstTweet.data.media[0].url} className="export-tweet-media" />
             )}
           </div>
         </div>
@@ -393,7 +396,7 @@ const App: React.FC = () => {
               </div>
             </div>
             {popularTweet.data.media && popularTweet.data.media[0] && (
-              <img crossOrigin="anonymous" src={popularTweet.data.media[0].previewUrl || popularTweet.data.media[0].url} className="export-tweet-media" />
+              <img crossOrigin="anonymous" referrerPolicy="no-referrer" src={popularTweet.data.media[0].previewUrl || popularTweet.data.media[0].url} className="export-tweet-media" />
             )}
           </div>
         </div>
@@ -402,7 +405,7 @@ const App: React.FC = () => {
         <div>
           <div className="export-section-title">TOP TAGGER</div>
           <div className="export-follow-item" style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '12px', border: '1px solid var(--border)' }}>
-            {mentions.data[0].user.profileImageUrlHttps ? <img src={mentions.data[0].user.profileImageUrlHttps} crossOrigin="anonymous" className="export-tweet-media" style={{width: '32px', height: '32px', borderRadius: '50%'}} /> : <div style={{width: '32px', height: '32px', borderRadius: '50%', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold'}}>{mentions.data[0].user.username.charAt(0)}</div>}
+            {mentions.data[0].user.profileImageUrlHttps ? <img src={mentions.data[0].user.profileImageUrlHttps} crossOrigin="anonymous" referrerPolicy="no-referrer" className="export-tweet-media" style={{width: '32px', height: '32px', borderRadius: '50%'}} /> : <div style={{width: '32px', height: '32px', borderRadius: '50%', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold'}}>{mentions.data[0].user.username.charAt(0)}</div>}
             <div style={{fontWeight: 'bold'}}>@{mentions.data[0].user.username}</div>
             <div style={{ color: 'var(--accent)', fontSize: '12px', marginLeft: 'auto' }}>{mentions.data[0].count} tags</div>
           </div>
@@ -412,7 +415,7 @@ const App: React.FC = () => {
         <div>
           <div className="export-section-title">TOP SHARED FOLLOW</div>
           <div className="export-follow-item" style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '12px', border: '1px solid var(--border)' }}>
-            {sharedFollows.data[0].avatar ? <img src={sharedFollows.data[0].avatar} crossOrigin="anonymous" className="export-tweet-media" style={{width: '32px', height: '32px', borderRadius: '50%'}} /> : <div style={{width: '32px', height: '32px', borderRadius: '50%', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold'}}>{sharedFollows.data[0].username.charAt(0)}</div>}
+            {sharedFollows.data[0].avatar ? <img src={sharedFollows.data[0].avatar} crossOrigin="anonymous" referrerPolicy="no-referrer" className="export-tweet-media" style={{width: '32px', height: '32px', borderRadius: '50%'}} /> : <div style={{width: '32px', height: '32px', borderRadius: '50%', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold'}}>{sharedFollows.data[0].username.charAt(0)}</div>}
             <div style={{fontWeight: 'bold'}}>@{sharedFollows.data[0].username}</div>
             <div style={{ color: 'var(--accent)', fontSize: '12px', marginLeft: 'auto' }}>{sharedFollows.data[0].commonCount} common</div>
           </div>
@@ -475,19 +478,18 @@ const App: React.FC = () => {
         </div>
         <div className="rail-item active"><span className="rail-icon"><Search /></span> Search</div>
         <div className="rail-item"><span className="rail-icon"><Clock /></span> History</div>
-        <div className="rail-item"><span className="rail-icon"><Bookmark /></span> Saved findings</div>
+        <div className="rail-item"><span className="rail-icon"><Bookmark /></span> Bookmarks</div>
         <div className="rail-item"><span className="rail-icon"><Download /></span> Downloads</div>
         <div className="rail-item"><span className="rail-icon"><Settings /></span> Settings</div>
         
-        <button className="rail-post" onClick={() => document.getElementById('search-input')?.focus()}>Search</button>
-        
-        <div className="rail-account">
-          <div className="av"></div>
-          <div className="info">
-            <div className="n">User <BadgeCheck size={14} color="var(--accent)" /></div>
-            <div className="h">@user</div>
-          </div>
-        </div>
+        <button className="rail-post" onClick={(e) => {
+          const input = document.getElementById('search-input') as HTMLInputElement;
+          if (input && input.value) {
+            initSearch({ preventDefault: () => {} } as any);
+          } else if (input) {
+            input.focus();
+          }
+        }}>Search</button>
       </div>
 
       {/* CENTER FEED */}
@@ -498,7 +500,7 @@ const App: React.FC = () => {
         </div>
 
         <form className="compose" onSubmit={initSearch}>
-          {activeUserAvatar ? <img src={activeUserAvatar} className="av" crossOrigin="anonymous" style={{ objectFit: 'cover' }} /> : <div className="av"></div>}
+          {activeUserAvatar ? <img src={activeUserAvatar} className="av" crossOrigin="anonymous" referrerPolicy="no-referrer" style={{ objectFit: 'cover' }} /> : <div className="av"></div>}
           <div className="compose-body">
             <input 
               id="search-input"
@@ -520,7 +522,7 @@ const App: React.FC = () => {
             {/* Oldest Follow */}
             {toggles.followings && (
             <div className="tweet">
-              {activeUserAvatar ? <img src={activeUserAvatar} className="av" /> : <div className="av"></div>}
+              {activeUserAvatar ? <img src={activeUserAvatar} className="av" crossOrigin="anonymous" referrerPolicy="no-referrer" /> : <div className="av"></div>}
               <div className="tweet-body">
                 <div className="tweet-head">
                   <span className="name">{activeUser}</span>
@@ -529,15 +531,17 @@ const App: React.FC = () => {
                   <span className="dot">·</span>
                   <span className="time">{followings.status === 'done' ? 'Found' : followings.status === 'error' ? 'Error' : 'Pending'}</span>
                 </div>
-                <div className="tweet-tag" style={{ color: followings.status === 'done' ? 'var(--accent)' : 'var(--muted)' }}>OLDEST FOLLOW</div>
+                <div className="tweet-tag" style={{ color: followings.status === 'done' ? 'var(--accent)' : 'var(--muted)' }}>MY FIRST 5 FOLLOWS</div>
                 <div className="tweet-text" style={{ color: followings.status === 'done' ? 'var(--text)' : 'var(--muted)' }}>
                   {followings.status === 'done' && followings.data && followings.data.length > 0 ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '10px' }}>
-                      {followings.data.map((u, i) => (
+                      {[...followings.data].reverse().map((u, i) => {
+                        const rank = followings.data!.length - i;
+                        return (
                         <a href={`https://x.com/${u.username}`} target="_blank" rel="noopener noreferrer" key={u.userId} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(255,255,255,0.03)', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', textDecoration: 'none', color: 'inherit' }}>
-                          <div style={{ width: '20px', fontSize: '12px', color: 'var(--muted)', fontWeight: 'bold' }}>{i + 1}</div>
+                          <div style={{ width: '20px', fontSize: '12px', color: 'var(--muted)', fontWeight: 'bold' }}>{rank}</div>
                           {u.profileImageUrlHttps ? (
-                            <img src={u.profileImageUrlHttps} crossOrigin="anonymous" style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }} />
+                            <img src={u.profileImageUrlHttps} crossOrigin="anonymous" referrerPolicy="no-referrer" style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }} />
                           ) : (
                             <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>{u.name.charAt(0)}</div>
                           )}
@@ -570,7 +574,7 @@ const App: React.FC = () => {
             {/* First Post */}
             {toggles.firstTweet && (
             <div className="tweet">
-              {activeUserAvatar ? <img src={activeUserAvatar} className="av" /> : <div className="av"></div>}
+              {activeUserAvatar ? <img src={activeUserAvatar} className="av" crossOrigin="anonymous" referrerPolicy="no-referrer" /> : <div className="av"></div>}
               <div className="tweet-body">
                 <div className="tweet-head">
                   <span className="name">{activeUser}</span>
@@ -588,9 +592,9 @@ const App: React.FC = () => {
                         <div style={{ display: 'grid', gap: '8px', gridTemplateColumns: firstTweet.data.media.length > 1 ? '1fr 1fr' : '1fr', marginTop: '10px' }}>
                           {firstTweet.data.media.map((m, i) => (
                             m.type === 'video' || m.type === 'animated_gif' || m.videoUrl ? (
-                              <video key={i} src={m.videoUrl} poster={m.previewUrl} controls style={{ width: '100%', borderRadius: '12px', border: '1px solid var(--border)' }} onClick={e => e.preventDefault()} />
+                              <video key={i} crossOrigin="anonymous" src={m.videoUrl} poster={m.previewUrl} controls style={{ width: '100%', borderRadius: '12px', border: '1px solid var(--border)' }} onClick={e => e.preventDefault()} />
                             ) : (
-                              <img key={i} src={m.url || m.previewUrl} style={{ width: '100%', borderRadius: '12px', border: '1px solid var(--border)' }} />
+                              <img key={i} crossOrigin="anonymous" referrerPolicy="no-referrer" src={m.url || m.previewUrl} style={{ width: '100%', borderRadius: '12px', border: '1px solid var(--border)' }} />
                             )
                           ))}
                         </div>
@@ -618,7 +622,7 @@ const App: React.FC = () => {
             {/* 100 Likes */}
             {toggles.popularTweet && (
             <div className="tweet">
-              {activeUserAvatar ? <img src={activeUserAvatar} className="av" /> : <div className="av"></div>}
+              {activeUserAvatar ? <img src={activeUserAvatar} className="av" crossOrigin="anonymous" referrerPolicy="no-referrer" /> : <div className="av"></div>}
               <div className="tweet-body">
                 <div className="tweet-head">
                   <span className="name">{activeUser}</span>
@@ -636,9 +640,9 @@ const App: React.FC = () => {
                         <div style={{ display: 'grid', gap: '8px', gridTemplateColumns: popularTweet.data.media.length > 1 ? '1fr 1fr' : '1fr', marginTop: '10px' }}>
                           {popularTweet.data.media.map((m, i) => (
                             m.type === 'video' || m.type === 'animated_gif' || m.videoUrl ? (
-                              <video key={i} src={m.videoUrl} poster={m.previewUrl} controls style={{ width: '100%', borderRadius: '12px', border: '1px solid var(--border)' }} onClick={e => e.preventDefault()} />
+                              <video key={i} crossOrigin="anonymous" src={m.videoUrl} poster={m.previewUrl} controls style={{ width: '100%', borderRadius: '12px', border: '1px solid var(--border)' }} onClick={e => e.preventDefault()} />
                             ) : (
-                              <img key={i} src={m.url || m.previewUrl} style={{ width: '100%', borderRadius: '12px', border: '1px solid var(--border)' }} />
+                              <img key={i} crossOrigin="anonymous" referrerPolicy="no-referrer" src={m.url || m.previewUrl} style={{ width: '100%', borderRadius: '12px', border: '1px solid var(--border)' }} />
                             )
                           ))}
                         </div>
@@ -666,7 +670,7 @@ const App: React.FC = () => {
             {/* Mentions */}
             {toggles.mentions && (
             <div className="tweet">
-              {activeUserAvatar ? <img src={activeUserAvatar} className="av" /> : <div className="av"></div>}
+              {activeUserAvatar ? <img src={activeUserAvatar} className="av" crossOrigin="anonymous" referrerPolicy="no-referrer" /> : <div className="av"></div>}
               <div className="tweet-body">
                 <div className="tweet-head">
                   <span className="name">{activeUser}</span>
@@ -683,7 +687,7 @@ const App: React.FC = () => {
                         <a href={`https://x.com/${m.user.username}`} target="_blank" rel="noopener noreferrer" key={m.user.userId} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(255,255,255,0.03)', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', textDecoration: 'none', color: 'inherit' }}>
                           <div style={{ width: '20px', fontSize: '12px', color: 'var(--muted)', fontWeight: 'bold' }}>{i + 1}</div>
                           {m.user.profileImageUrlHttps ? (
-                            <img src={m.user.profileImageUrlHttps} crossOrigin="anonymous" style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }} />
+                            <img src={m.user.profileImageUrlHttps} crossOrigin="anonymous" referrerPolicy="no-referrer" style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }} />
                           ) : (
                             <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>{m.user.name.charAt(0)}</div>
                           )}
@@ -717,7 +721,7 @@ const App: React.FC = () => {
             {/* Shared Follows */}
             {toggles.sharedFollows && (
             <div className="tweet">
-              {activeUserAvatar ? <img src={activeUserAvatar} className="av" /> : <div className="av"></div>}
+              {activeUserAvatar ? <img src={activeUserAvatar} className="av" crossOrigin="anonymous" referrerPolicy="no-referrer" /> : <div className="av"></div>}
               <div className="tweet-body">
                 <div className="tweet-head">
                   <span className="name">{activeUser}</span>
@@ -734,7 +738,7 @@ const App: React.FC = () => {
                         <a href={`https://x.com/${u.username}`} target="_blank" rel="noopener noreferrer" key={u.username} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(255,255,255,0.03)', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', textDecoration: 'none', color: 'inherit' }}>
                           <div style={{ width: '20px', fontSize: '12px', color: 'var(--muted)', fontWeight: 'bold' }}>{i + 1}</div>
                           {u.avatar ? (
-                            <img src={u.avatar} crossOrigin="anonymous" style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }} />
+                            <img src={u.avatar} crossOrigin="anonymous" referrerPolicy="no-referrer" style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }} />
                           ) : (
                             <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>{u.username.charAt(0)}</div>
                           )}
@@ -776,7 +780,7 @@ const App: React.FC = () => {
         <div className="widget">
           <h3>Your queries</h3>
           <div className="qitem" onClick={() => toggle('followings')}>
-            <div><div className="ql">Oldest follow</div><div className="qm">{followings.status}</div></div>
+            <div><div className="ql">My first 5 follows</div><div className="qm">{followings.status}</div></div>
             <div className={`toggle ${toggles.followings ? 'on' : ''}`}></div>
           </div>
           <div className="qitem" onClick={() => toggle('firstTweet')}>
