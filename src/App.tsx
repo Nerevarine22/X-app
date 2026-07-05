@@ -550,7 +550,7 @@ const App: React.FC = () => {
                             <div style={{ fontSize: '12.5px', color: 'var(--muted)' }}>@{u.username}</div>
                           </div>
                         </a>
-                      ))}
+                      ); })}
                     </div>
                   ) : followings.status === 'loading' ? (
                     <Loader2 size={16} className="animate-spin" />
