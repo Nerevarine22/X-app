@@ -43,7 +43,8 @@ const App: React.FC = () => {
   const [sharedFollows, setSharedFollows] = useState<QueryState<SimilarUser[]>>({ status: 'idle', data: null });
 
   // Toggles for card
-  const [toggles, setToggles] = useState({ followings: true, firstTweet: false, popularTweet: false, mentions: false, sharedFollows: false });
+  const [toggles, setToggles] = useState({ followings: true, firstTweet: true, popularTweet: true, mentions: true, sharedFollows: true });
+  const [showNotification, setShowNotification] = useState(false);
 
   // Modal and Card Options
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -478,7 +479,15 @@ const App: React.FC = () => {
         </div>
         <div className="rail-item active"><span className="rail-icon"><Search /></span> Search</div>
         <div className="rail-item"><span className="rail-icon"><Clock /></span> History</div>
-        <div className="rail-item"><span className="rail-icon"><Bell /></span> Notifications</div>
+        <div className="rail-item" onClick={() => setShowNotification(!showNotification)}>
+          <span className="rail-icon"><Bell /></span> Notifications
+          <div className="nav-badge">1</div>
+          {showNotification && (
+            <div className="notification-popup" onClick={(e) => e.stopPropagation()}>
+              Find your Twitter bro's first tweet and hit like to surprise him
+            </div>
+          )}
+        </div>
         <div className="rail-item"><span className="rail-icon"><Bookmark /></span> Bookmarks</div>
         <div className="rail-item"><span className="rail-icon"><Download /></span> Downloads</div>
         <div className="rail-item"><span className="rail-icon"><Settings /></span> Settings</div>

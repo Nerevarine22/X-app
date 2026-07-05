@@ -51,6 +51,7 @@ body {
 }
 .rail .mark:hover { background: var(--bg-2); }
 .rail-item {
+  position: relative;
   display: flex; align-items: center; gap: 16px;
   padding: 11px 16px;
   border-radius: 100px;
@@ -62,6 +63,19 @@ body {
 }
 .rail-item:hover { background: var(--bg-2); }
 .rail-item.active { font-weight: 800; }
+.nav-badge {
+  background: var(--accent); color: #fff;
+  font-size: 12px; font-weight: 800; border-radius: 50%;
+  min-width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;
+  margin-left: 8px;
+}
+.notification-popup {
+  position: absolute; top: calc(100% + 4px); left: 0;
+  background: var(--bg); border: 1px solid var(--border);
+  padding: 16px; border-radius: 16px; width: 280px; z-index: 100;
+  box-shadow: 0 4px 20px rgba(255,255,255,0.08);
+  font-size: 15px; color: var(--text); line-height: 1.4; font-weight: normal; cursor: default;
+}
 .rail-icon { width: 24px; text-align: center; display: flex; }
 .rail-icon svg { width: 24px; height: 24px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .rail-post {
