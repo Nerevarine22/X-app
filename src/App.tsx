@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Search, Loader2, Play, Bookmark, Download, Settings, Clock, CheckCircle2 } from 'lucide-react';
+import { Search, Loader2, Play, Bookmark, Download, Settings, Clock, CheckCircle2, Bell } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import { getCachedFollowingsFromFirebase, saveFollowingsToFirebaseCache, findSimilarUsersInFirebase, getCachedTweetFromFirebase, saveTweetToFirebaseCache, getCachedMentionsFromFirebase, saveMentionsToFirebaseCache } from './firebase';
 import type { SimilarUser, MentionUser } from './firebase';
@@ -478,6 +478,7 @@ const App: React.FC = () => {
         </div>
         <div className="rail-item active"><span className="rail-icon"><Search /></span> Search</div>
         <div className="rail-item"><span className="rail-icon"><Clock /></span> History</div>
+        <div className="rail-item"><span className="rail-icon"><Bell /></span> Notifications</div>
         <div className="rail-item"><span className="rail-icon"><Bookmark /></span> Bookmarks</div>
         <div className="rail-item"><span className="rail-icon"><Download /></span> Downloads</div>
         <div className="rail-item"><span className="rail-icon"><Settings /></span> Settings</div>
@@ -500,7 +501,7 @@ const App: React.FC = () => {
         </div>
 
         <form className="compose" onSubmit={initSearch}>
-          {activeUserAvatar ? <img src={activeUserAvatar} className="av" crossOrigin="anonymous" referrerPolicy="no-referrer" style={{ objectFit: 'cover' }} /> : <div className="av"></div>}
+          {activeUserAvatar ? <img src={activeUserAvatar} className="av" style={{ objectFit: 'cover' }} /> : <div className="av"></div>}
           <div className="compose-body">
             <input 
               id="search-input"
@@ -522,7 +523,7 @@ const App: React.FC = () => {
             {/* Oldest Follow */}
             {toggles.followings && (
             <div className="tweet">
-              {activeUserAvatar ? <img src={activeUserAvatar} className="av" crossOrigin="anonymous" referrerPolicy="no-referrer" /> : <div className="av"></div>}
+              {activeUserAvatar ? <img src={activeUserAvatar} className="av" /> : <div className="av"></div>}
               <div className="tweet-body">
                 <div className="tweet-head">
                   <span className="name">{activeUser}</span>
@@ -574,7 +575,7 @@ const App: React.FC = () => {
             {/* First Post */}
             {toggles.firstTweet && (
             <div className="tweet">
-              {activeUserAvatar ? <img src={activeUserAvatar} className="av" crossOrigin="anonymous" referrerPolicy="no-referrer" /> : <div className="av"></div>}
+              {activeUserAvatar ? <img src={activeUserAvatar} className="av" /> : <div className="av"></div>}
               <div className="tweet-body">
                 <div className="tweet-head">
                   <span className="name">{activeUser}</span>
@@ -622,7 +623,7 @@ const App: React.FC = () => {
             {/* 100 Likes */}
             {toggles.popularTweet && (
             <div className="tweet">
-              {activeUserAvatar ? <img src={activeUserAvatar} className="av" crossOrigin="anonymous" referrerPolicy="no-referrer" /> : <div className="av"></div>}
+              {activeUserAvatar ? <img src={activeUserAvatar} className="av" /> : <div className="av"></div>}
               <div className="tweet-body">
                 <div className="tweet-head">
                   <span className="name">{activeUser}</span>
@@ -670,7 +671,7 @@ const App: React.FC = () => {
             {/* Mentions */}
             {toggles.mentions && (
             <div className="tweet">
-              {activeUserAvatar ? <img src={activeUserAvatar} className="av" crossOrigin="anonymous" referrerPolicy="no-referrer" /> : <div className="av"></div>}
+              {activeUserAvatar ? <img src={activeUserAvatar} className="av" /> : <div className="av"></div>}
               <div className="tweet-body">
                 <div className="tweet-head">
                   <span className="name">{activeUser}</span>
@@ -721,7 +722,7 @@ const App: React.FC = () => {
             {/* Shared Follows */}
             {toggles.sharedFollows && (
             <div className="tweet">
-              {activeUserAvatar ? <img src={activeUserAvatar} className="av" crossOrigin="anonymous" referrerPolicy="no-referrer" /> : <div className="av"></div>}
+              {activeUserAvatar ? <img src={activeUserAvatar} className="av" /> : <div className="av"></div>}
               <div className="tweet-body">
                 <div className="tweet-head">
                   <span className="name">{activeUser}</span>
