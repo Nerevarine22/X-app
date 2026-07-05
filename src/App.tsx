@@ -592,9 +592,9 @@ const App: React.FC = () => {
                         <div style={{ display: 'grid', gap: '8px', gridTemplateColumns: firstTweet.data.media.length > 1 ? '1fr 1fr' : '1fr', marginTop: '10px' }}>
                           {firstTweet.data.media.map((m, i) => (
                             m.type === 'video' || m.type === 'animated_gif' || m.videoUrl ? (
-                              <video key={i} crossOrigin="anonymous" src={m.videoUrl} poster={m.previewUrl} controls style={{ width: '100%', borderRadius: '12px', border: '1px solid var(--border)' }} onClick={e => e.preventDefault()} />
+                              <video key={i} src={m.videoUrl} poster={m.previewUrl} controls style={{ width: '100%', borderRadius: '12px', border: '1px solid var(--border)' }} onClick={e => e.preventDefault()} />
                             ) : (
-                              <img key={i} crossOrigin="anonymous" referrerPolicy="no-referrer" src={m.url || m.previewUrl} style={{ width: '100%', borderRadius: '12px', border: '1px solid var(--border)' }} />
+                              <img key={i} src={m.url || m.previewUrl} style={{ width: '100%', borderRadius: '12px', border: '1px solid var(--border)' }} />
                             )
                           ))}
                         </div>
@@ -640,9 +640,9 @@ const App: React.FC = () => {
                         <div style={{ display: 'grid', gap: '8px', gridTemplateColumns: popularTweet.data.media.length > 1 ? '1fr 1fr' : '1fr', marginTop: '10px' }}>
                           {popularTweet.data.media.map((m, i) => (
                             m.type === 'video' || m.type === 'animated_gif' || m.videoUrl ? (
-                              <video key={i} crossOrigin="anonymous" src={m.videoUrl} poster={m.previewUrl} controls style={{ width: '100%', borderRadius: '12px', border: '1px solid var(--border)' }} onClick={e => e.preventDefault()} />
+                              <video key={i} src={m.videoUrl} poster={m.previewUrl} controls style={{ width: '100%', borderRadius: '12px', border: '1px solid var(--border)' }} onClick={e => e.preventDefault()} />
                             ) : (
-                              <img key={i} crossOrigin="anonymous" referrerPolicy="no-referrer" src={m.url || m.previewUrl} style={{ width: '100%', borderRadius: '12px', border: '1px solid var(--border)' }} />
+                              <img key={i} src={m.url || m.previewUrl} style={{ width: '100%', borderRadius: '12px', border: '1px solid var(--border)' }} />
                             )
                           ))}
                         </div>
