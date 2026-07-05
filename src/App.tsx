@@ -523,8 +523,8 @@ const App: React.FC = () => {
           <div className="label">Word Cloud</div>
           <div style={{ textAlign: 'center', padding: '12px 0' }}>
             <TagCloud
-              minSize={16}
-              maxSize={42}
+              minSize={20}
+              maxSize={60}
               tags={words.data}
               className="simple-cloud"
               colorOptions={{ luminosity: 'light', hue: 'blue' }}
