@@ -432,7 +432,7 @@ const App: React.FC = () => {
       <div className="p-head">
         <div className="p-brand">
           {activeUserAvatar ? <img crossOrigin="anonymous" referrerPolicy="no-referrer" src={activeUserAvatar} className="av" /> : <div className="av"></div>}
-          <span className="name">X Archive</span>
+          <span className="name">@x-archive</span>
         </div>
         <span className="handle">@{activeUser}</span>
       </div>

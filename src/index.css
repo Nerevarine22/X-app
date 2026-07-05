@@ -245,7 +245,6 @@ body {
 /* POSTER PREVIEW */
 .poster{
   width:720px;
-  min-height:900px;
   background:#000;
   border:1.5px solid var(--border);
   border-radius:39px;
