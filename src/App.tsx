@@ -33,46 +33,7 @@ interface QueryState<T> {
 }
 
 
-const WordCloudWidget = ({ wordsData, hideFooter = false }: { wordsData: any[], hideFooter?: boolean }) => {
-  const topWord = wordsData[0];
-  return (
-    <div style={{ width: '100%', maxWidth: '460px', margin: '0 auto', fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', padding: '10px 0' }}>
-      <div style={{ color: 'var(--accent)', fontSize: '13px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '16px' }}>MOST USED WORDS</div>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '20px' }}>
-        <div style={{ fontSize: '32px', fontWeight: 900, color: '#fff', letterSpacing: '-1px' }}>"{topWord.value}"</div>
-        <div style={{ fontSize: '14px', color: 'var(--muted)' }}>used <span style={{color:'#fff', fontWeight:'bold'}}>{topWord.count} times</span> · most frequent word</div>
-      </div>
-      <div style={{ background: '#16181c', borderRadius: '16px', padding: '40px', textAlign: 'center', minHeight: '260px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <TagCloud 
-          minSize={14} 
-          maxSize={48} 
-          tags={wordsData} 
-          renderer={(tag: any, size: number, _color: string) => {
-             const rank = wordsData.findIndex((t: any) => t.value === tag.value);
-             let tagColor = '#71767b';
-             let weight = 600;
-             if (rank === 0) { tagColor = '#ffffff'; weight = 800; }
-             else if (rank < 5) { tagColor = 'var(--accent)'; weight = 700; }
-             
-             return (
-               <span key={tag.value} style={{ color: tagColor, fontSize: `${size}px`, fontWeight: weight, padding: '4px 8px', display: 'inline-block', lineHeight: 1.2 }}>
-                 {tag.value}
-               </span>
-             );
-          }} 
-        />
-      </div>
-      {!hideFooter && (
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px', fontSize: '13px' }}>
-          <div style={{ color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 500 }}>
-            <CheckCircle2 size={14} /> Verified across last 100 posts
-          </div>
-          <div style={{ color: 'var(--muted)' }}>x-archive.app</div>
-        </div>
-      )}
-    </div>
-  );
-};
+
 
 const App: React.FC = () => {
   const [searchInput, setSearchInput] = useState('');
@@ -529,7 +490,21 @@ const App: React.FC = () => {
       )}
 
       {cardOptions.words && words.status === 'done' && words.data && words.data.length > 0 && (
-        <WordCloudWidget wordsData={words.data} hideFooter={true} />
+        <div className="tile">
+          <div className="label">Word Cloud</div>
+          <div className="small-quote" style={{ marginBottom: '16px' }}>
+            Most frequent word: "{words.data[0].value}" (used {words.data[0].count} times)
+          </div>
+          <div style={{ textAlign: 'center', padding: '12px 0' }}>
+            <TagCloud
+              minSize={16}
+              maxSize={50}
+              tags={words.data}
+              className="simple-cloud"
+              colorOptions={{ luminosity: 'light', hue: 'blue' }}
+            />
+          </div>
+        </div>
       )}
 
       <div className="p-foot">
@@ -646,33 +621,44 @@ const App: React.FC = () => {
         {activeUser && (
           <>
             {toggles.words && (
-              <div style={{ paddingBottom: '20px', borderBottom: '1px solid var(--border)' }}>
-                {words.status === 'done' && words.data && words.data.length > 0 ? (
-                  <WordCloudWidget wordsData={words.data} />
-                ) : (
-                  <div className="tweet" style={{ borderBottom: 'none' }}>
-                    {activeUserAvatar ? <img crossOrigin="anonymous" referrerPolicy="no-referrer" src={activeUserAvatar} className="av" /> : <div className="av"></div>}
-                    <div className="tweet-body">
-                      <div className="tweet-head">
-                        <span className="name">{activeUser}</span>
-                        <span className="badge outline">∞</span>
-                        <span className="handle">@{activeUser}</span>
-                        <span className="dot">·</span>
-                        <span className="time">{words.status === 'loading' ? 'Pending' : 'Pending'}</span>
+            <div className="tweet">
+              {activeUserAvatar ? <img crossOrigin="anonymous" referrerPolicy="no-referrer" src={activeUserAvatar} className="av" /> : <div className="av"></div>}
+              <div className="tweet-body">
+                <div className="tweet-head">
+                  <span className="name">{activeUser}</span>
+                  <span className="badge outline">∞</span>
+                  <span className="handle">@{activeUser}</span>
+                  <span className="dot">·</span>
+                  <span className="time">{words.status === 'done' ? 'Found' : 'Pending'}</span>
+                </div>
+                <div className="tweet-tag" style={{ color: words.status === 'done' ? 'var(--accent)' : 'var(--muted)' }}>WORD CLOUD</div>
+                <div className="tweet-text" style={{ color: words.status === 'done' ? 'var(--text)' : 'var(--muted)' }}>
+                  {words.status === 'done' && words.data && words.data.length > 0 ? (
+                    <>
+                      <div style={{ marginBottom: '12px', fontSize: '15px' }}>
+                        Most frequent word: <strong>"{words.data[0].value}"</strong> (used {words.data[0].count} times)
                       </div>
-                      <div className="tweet-tag" style={{ color: 'var(--muted)' }}>WORD CLOUD</div>
-                      <div className="tweet-text" style={{ color: 'var(--muted)' }}>
-                        {words.status === 'loading' ? <Loader2 size={16} className="animate-spin" /> : words.status === 'error' ? <>Error: {words.error}</> : <>Run this query to build a word cloud from recent posts.</>}
+                      <div style={{ background: 'rgba(255,255,255,0.03)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border)', textAlign: 'center' }}>
+                        <TagCloud minSize={14} maxSize={40} tags={words.data} className="simple-cloud" colorOptions={{ luminosity: 'light', hue: 'blue' }} />
                       </div>
-                      <div className="tweet-actions">
-                        {words.status === 'idle' || words.status === 'error' ? (
-                          <div className="action" onClick={() => runWords(activeUser)}><Play size={18} /><span>Run query</span></div>
-                        ) : null}
-                      </div>
-                    </div>
-                  </div>
-                )}
+                    </>
+                  ) : words.status === 'loading' ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : words.status === 'error' ? (
+                    <>Error: {words.error}</>
+                  ) : (
+                    <>Run this query to build a word cloud from recent posts.</>
+                  )}
+                </div>
+                <div className="tweet-actions">
+                  {words.status === 'idle' || words.status === 'error' ? (
+                    <div className="action" onClick={() => runWords(activeUser)}><Play size={18} /><span>Run query</span></div>
+                  ) : (
+                    <div className="action" style={{ color: 'var(--accent)' }}><CheckCircle2 size={18} /><span>Completed</span></div>
+                  )}
+                </div>
               </div>
+            </div>
             )}
             {/* Oldest Follow */}
             {toggles.followings && (
