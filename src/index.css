@@ -359,6 +359,10 @@ body {
 /* MODAL STYLES */
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: flex; align-items: center; justify-content: center; z-index: 9999; backdrop-filter: blur(4px); padding: 20px; }
 .modal-content { background: var(--bg-2); border-radius: 20px; width: fit-content; max-width: 90vw; max-height: 95vh; overflow-y: auto; overflow-x: hidden; padding: 24px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); border: 1px solid var(--border); }
+.modal-content::-webkit-scrollbar { width: 8px; }
+.modal-content::-webkit-scrollbar-track { background: transparent; }
+.modal-content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+.modal-content::-webkit-scrollbar-thumb:hover { background: var(--muted); }
 .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; font-size: 24px; font-weight: 800; }
 .close-btn { background: transparent; border: none; color: var(--muted); cursor: pointer; display: flex; padding: 4px; border-radius: 50%; }
 .close-btn:hover { background: var(--bg-3); color: var(--text); }

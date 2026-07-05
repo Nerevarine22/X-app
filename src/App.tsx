@@ -654,6 +654,70 @@ const App: React.FC = () => {
 
         {activeUser && (
           <>
+            {toggles.activity && (
+            <div className="tweet">
+              {activeUserAvatar ? <img src={activeUserAvatar} className="av" /> : <div className="av"></div>}
+              <div className="tweet-body">
+                <div className="tweet-head">
+                  <span className="name">{activeUser}</span>
+                  <span className="badge outline">∞</span>
+                  <span className="handle">@{activeUser}</span>
+                  <span className="dot">·</span>
+                  <span className="time">{activity.status === 'done' ? 'Found' : 'Pending'}</span>
+                </div>
+                <div className="tweet-tag" style={{ color: activity.status === 'done' ? 'var(--accent)' : 'var(--muted)' }}>ACTIVITY MAP</div>
+                <div className="tweet-text" style={{ color: activity.status === 'done' ? 'var(--text)' : 'var(--muted)' }}>
+                  {activity.status === 'done' && activity.data ? (
+                    <div style={{ background: 'rgba(255,255,255,0.03)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border)', marginTop: '10px' }}>
+                      <ActivityCalendar 
+                        data={activity.data} 
+                        theme={{ light: ['#ebedf0', '#9be9a8', '#40c463', '#30a14e', '#216e39'], dark: ['#161b22', '#0e4429', '#006d32', '#26a641', '#39d353'] }}
+                        colorScheme="dark" blockSize={12} blockMargin={4} fontSize={12}
+                      />
+                    </div>
+                  ) : activity.status === 'loading' ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : activity.status === 'error' ? (
+                    <>Error: {activity.error}</>
+                  ) : (
+                    <>Run this query to build your activity heatmap.</>
+                  )}
+                </div>
+                <div className="tweet-actions">
+                  {activity.status === 'idle' || activity.status === 'error' ? (
+                    <div className="action" onClick={() => runActivityAndWords(activeUser)}><Play size={18} /><span>Run query</span></div>
+                  ) : (
+                    <div className="action" style={{ color: 'var(--accent)' }}><CheckCircle2 size={18} /><span>Completed</span></div>
+                  )}
+                </div>
+              </div>
+            </div>
+            )}
+
+            {toggles.words && (
+            <div className="tweet">
+              {activeUserAvatar ? <img src={activeUserAvatar} className="av" /> : <div className="av"></div>}
+              <div className="tweet-body">
+                <div className="tweet-head">
+                  <span className="name">{activeUser}</span>
+                  <span className="badge outline">∞</span>
+                  <span className="handle">@{activeUser}</span>
+                  <span className="dot">·</span>
+                  <span className="time">{words.status === 'done' ? 'Found' : 'Pending'}</span>
+                </div>
+                <div className="tweet-tag" style={{ color: words.status === 'done' ? 'var(--accent)' : 'var(--muted)' }}>WORD CLOUD</div>
+                <div className="tweet-text" style={{ color: words.status === 'done' ? 'var(--text)' : 'var(--muted)' }}>
+                  {words.status === 'done' && words.data && words.data.length > 0 ? (
+                    <div style={{ background: 'rgba(255,255,255,0.03)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border)', marginTop: '10px', textAlign: 'center' }}>
+                      <TagCloud minSize={14} maxSize={40} tags={words.data} className="simple-cloud" colorOptions={{ luminosity: 'light', hue: 'blue' }} />
+                    </div>
+                  ) : words.status === 'loading' ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : words.status === 'error' ? (
+                    <>Error: {words.error}</>
+                  ) : (
+                    <>Run this query to build a word cloud from recent posts.</>
+                  )}
             {/* Oldest Follow */}
             {toggles.followings && (
             <div className="tweet">
@@ -902,70 +966,7 @@ const App: React.FC = () => {
               </div>
             </div>
             )}
-            {toggles.activity && (
-            <div className="tweet">
-              {activeUserAvatar ? <img src={activeUserAvatar} className="av" /> : <div className="av"></div>}
-              <div className="tweet-body">
-                <div className="tweet-head">
-                  <span className="name">{activeUser}</span>
-                  <span className="badge outline">∞</span>
-                  <span className="handle">@{activeUser}</span>
-                  <span className="dot">·</span>
-                  <span className="time">{activity.status === 'done' ? 'Found' : 'Pending'}</span>
-                </div>
-                <div className="tweet-tag" style={{ color: activity.status === 'done' ? 'var(--accent)' : 'var(--muted)' }}>ACTIVITY MAP</div>
-                <div className="tweet-text" style={{ color: activity.status === 'done' ? 'var(--text)' : 'var(--muted)' }}>
-                  {activity.status === 'done' && activity.data ? (
-                    <div style={{ background: 'rgba(255,255,255,0.03)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border)', marginTop: '10px' }}>
-                      <ActivityCalendar 
-                        data={activity.data} 
-                        theme={{ light: ['#ebedf0', '#9be9a8', '#40c463', '#30a14e', '#216e39'], dark: ['#161b22', '#0e4429', '#006d32', '#26a641', '#39d353'] }}
-                        colorScheme="dark" blockSize={12} blockMargin={4} fontSize={12}
-                      />
-                    </div>
-                  ) : activity.status === 'loading' ? (
-                    <Loader2 size={16} className="animate-spin" />
-                  ) : activity.status === 'error' ? (
-                    <>Error: {activity.error}</>
-                  ) : (
-                    <>Run this query to build your activity heatmap.</>
-                  )}
-                </div>
-                <div className="tweet-actions">
-                  {activity.status === 'idle' || activity.status === 'error' ? (
-                    <div className="action" onClick={() => runActivityAndWords(activeUser)}><Play size={18} /><span>Run query</span></div>
-                  ) : (
-                    <div className="action" style={{ color: 'var(--accent)' }}><CheckCircle2 size={18} /><span>Completed</span></div>
-                  )}
-                </div>
-              </div>
-            </div>
-            )}
 
-            {toggles.words && (
-            <div className="tweet">
-              {activeUserAvatar ? <img src={activeUserAvatar} className="av" /> : <div className="av"></div>}
-              <div className="tweet-body">
-                <div className="tweet-head">
-                  <span className="name">{activeUser}</span>
-                  <span className="badge outline">∞</span>
-                  <span className="handle">@{activeUser}</span>
-                  <span className="dot">·</span>
-                  <span className="time">{words.status === 'done' ? 'Found' : 'Pending'}</span>
-                </div>
-                <div className="tweet-tag" style={{ color: words.status === 'done' ? 'var(--accent)' : 'var(--muted)' }}>WORD CLOUD</div>
-                <div className="tweet-text" style={{ color: words.status === 'done' ? 'var(--text)' : 'var(--muted)' }}>
-                  {words.status === 'done' && words.data && words.data.length > 0 ? (
-                    <div style={{ background: 'rgba(255,255,255,0.03)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border)', marginTop: '10px', textAlign: 'center' }}>
-                      <TagCloud minSize={14} maxSize={40} tags={words.data} className="simple-cloud" colorOptions={{ luminosity: 'light', hue: 'blue' }} />
-                    </div>
-                  ) : words.status === 'loading' ? (
-                    <Loader2 size={16} className="animate-spin" />
-                  ) : words.status === 'error' ? (
-                    <>Error: {words.error}</>
-                  ) : (
-                    <>Run this query to build a word cloud from recent posts.</>
-                  )}
                 </div>
                 <div className="tweet-actions">
                   {words.status === 'idle' || words.status === 'error' ? (
