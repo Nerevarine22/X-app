@@ -159,6 +159,14 @@ body {
   color: var(--accent);
 }
 .tweet-text { font-size: 15px; line-height: 1.4; margin: 0 0 10px; }
+.tweet-text-clamped {
+  display: -webkit-box;
+  -webkit-line-clamp: 6;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: pre-wrap;
+}
 .tweet-actions { display: flex; justify-content: space-between; max-width: 340px; color: var(--muted); }
 .action { display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; }
 .action svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
