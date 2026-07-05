@@ -54,10 +54,11 @@ const App: React.FC = () => {
 
   // Modal and Card Options
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [cardOptions, setCardOptions] = useState({ followings: true, firstTweet: false, popularTweet: false, mentions: false, sharedFollows: false, words: false });
+  const [cardOptions, setCardOptions] = useState({ followings: true, firstTweet: false, popularTweet: false, mentions: false, sharedFollows: false });
   const [hasDownloaded, setHasDownloaded] = useState(false);
 
   const posterRef = useRef<HTMLDivElement>(null);
+  const wordCloudRef = useRef<HTMLDivElement>(null);
   const [isDownloading, setIsDownloading] = useState(false);
 
   const getApiKey = () => {
@@ -489,24 +490,6 @@ const App: React.FC = () => {
       </div>
       )}
 
-      {cardOptions.words && words.status === 'done' && words.data && words.data.length > 0 && (
-        <div className="tile">
-          <div className="label">Word Cloud</div>
-          <div className="small-quote" style={{ marginBottom: '16px' }}>
-            Most frequent word: "{words.data[0].value}" (used {words.data[0].count} times)
-          </div>
-          <div style={{ textAlign: 'center', padding: '12px 0' }}>
-            <TagCloud
-              minSize={16}
-              maxSize={50}
-              tags={words.data}
-              className="simple-cloud"
-              colorOptions={{ luminosity: 'light', hue: 'blue' }}
-            />
-          </div>
-        </div>
-      )}
-
       <div className="p-foot">
         <span>x-archive.app</span>
         <span>Case file @{activeUser}</span>
@@ -524,10 +507,23 @@ const App: React.FC = () => {
       link.href = dataUrl;
       link.click();
       setHasDownloaded(true);
-    } catch (err) {
-      alert('Error generating image');
+    } catch (e) {
+      console.error('Failed to download poster:', e);
     } finally {
       setIsDownloading(false);
+    }
+  };
+
+  const downloadWordCloud = async () => {
+    if (!wordCloudRef.current) return;
+    try {
+      const dataUrl = await toPng(wordCloudRef.current, { quality: 1, pixelRatio: 2, backgroundColor: '#16181c', style: { transform: 'scale(1)', margin: '0' } });
+      const link = document.createElement('a');
+      link.download = `archive-${activeUser || 'words'}-cloud.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch (e) {
+      console.error('Failed to download word cloud:', e);
     }
   };
 
@@ -638,8 +634,13 @@ const App: React.FC = () => {
                       <div style={{ marginBottom: '12px', fontSize: '15px' }}>
                         Most frequent word: <strong>"{words.data[0].value}"</strong> (used {words.data[0].count} times)
                       </div>
-                      <div style={{ background: 'rgba(255,255,255,0.03)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border)', textAlign: 'center' }}>
-                        <TagCloud minSize={14} maxSize={40} tags={words.data} className="simple-cloud" colorOptions={{ luminosity: 'light', hue: 'blue' }} />
+                      <div className="cloud-wrapper">
+                        <div ref={wordCloudRef} style={{ background: '#16181c', padding: '16px', borderRadius: '12px', border: '1px solid var(--border)', textAlign: 'center' }}>
+                          <TagCloud minSize={14} maxSize={40} tags={words.data} className="simple-cloud" colorOptions={{ luminosity: 'light', hue: 'blue' }} />
+                        </div>
+                        <div className="cloud-dl" onClick={downloadWordCloud} title="Download Word Cloud">
+                          <Download size={18} />
+                        </div>
                       </div>
                     </>
                   ) : words.status === 'loading' ? (
@@ -990,7 +991,7 @@ const App: React.FC = () => {
               }).map((k) => (
                 <label key={k} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', cursor: 'pointer', background: 'var(--bg-3)', padding: '6px 12px', borderRadius: '100px', border: `1px solid ${cardOptions[k as keyof typeof cardOptions] ? 'var(--accent)' : 'var(--border)'}` }}>
                   <input type="checkbox" checked={cardOptions[k as keyof typeof cardOptions]} onChange={(e) => setCardOptions({...cardOptions, [k]: e.target.checked})} style={{ display: 'none' }} />
-                  {k === 'followings' ? 'Oldest Follow' : k === 'firstTweet' ? 'First Post' : k === 'popularTweet' ? '100 Likes' : k === 'mentions' ? 'Top Tagger' : k === 'sharedFollows' ? 'Shared Follows' : 'Word Cloud'}
+                  {k === 'followings' ? 'Oldest Follow' : k === 'firstTweet' ? 'First Post' : k === 'popularTweet' ? '100 Likes' : k === 'mentions' ? 'Top Tagger' : 'Shared Follows'}
                 </label>
               ))}
             </div>

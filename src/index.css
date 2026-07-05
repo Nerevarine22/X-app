@@ -374,3 +374,8 @@ body {
 .export-tweet-media { width: 80px; height: 80px; border-radius: 8px; object-fit: cover; flex-shrink: 0; }
 .export-follows-grid { display: flex; flex-direction: column; gap: 8px; }
 .export-follow-item { display: flex; align-items: center; gap: 10px; font-size: 14px; }
+
+.cloud-wrapper { position: relative; display: inline-block; width: 100%; }
+.cloud-dl { position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.6); color: white; padding: 8px; border-radius: 50%; opacity: 0; transition: opacity 0.2s; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.cloud-wrapper:hover .cloud-dl { opacity: 1; }
+.cloud-dl:hover { background: rgba(0,0,0,0.8); }
