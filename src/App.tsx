@@ -36,16 +36,16 @@ interface QueryState<T> {
 const WordCloudWidget = ({ wordsData, hideFooter = false }: { wordsData: any[], hideFooter?: boolean }) => {
   const topWord = wordsData[0];
   return (
-    <div style={{ width: '100%', fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', padding: '10px 0' }}>
+    <div style={{ width: '100%', maxWidth: '460px', margin: '0 auto', fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', padding: '10px 0' }}>
       <div style={{ color: 'var(--accent)', fontSize: '13px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '16px' }}>MOST USED WORDS</div>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '20px' }}>
-        <div style={{ fontSize: '42px', fontWeight: 900, color: '#fff', letterSpacing: '-1.5px' }}>"{topWord.value}"</div>
-        <div style={{ fontSize: '15px', color: 'var(--muted)' }}>used <span style={{color:'#fff', fontWeight:'bold'}}>{topWord.count} times</span> · most frequent word</div>
+        <div style={{ fontSize: '32px', fontWeight: 900, color: '#fff', letterSpacing: '-1px' }}>"{topWord.value}"</div>
+        <div style={{ fontSize: '14px', color: 'var(--muted)' }}>used <span style={{color:'#fff', fontWeight:'bold'}}>{topWord.count} times</span> · most frequent word</div>
       </div>
-      <div style={{ background: '#16181c', borderRadius: '16px', padding: '40px 20px', textAlign: 'center', minHeight: '280px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ background: '#16181c', borderRadius: '16px', padding: '40px', textAlign: 'center', minHeight: '260px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <TagCloud 
-          minSize={16} 
-          maxSize={60} 
+          minSize={14} 
+          maxSize={48} 
           tags={wordsData} 
           renderer={(tag: any, size: number, _color: string) => {
              const rank = wordsData.findIndex((t: any) => t.value === tag.value);
