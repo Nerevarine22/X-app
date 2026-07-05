@@ -630,7 +630,7 @@ const App: React.FC = () => {
       {/* CENTER FEED */}
       <div className="feed">
         <div className="feed-header">
-          <h1>{activeUser ? `@${activeUser}` : 'X Archive'}</h1>
+          <h1>X Archive</h1>
           <p>{activeUser ? `4 queries available · ${numFound} findings on record` : 'Enter a username to begin'}</p>
         </div>
 
