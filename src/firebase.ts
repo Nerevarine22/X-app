@@ -168,34 +168,31 @@ export const findSimilarUsersInFirebase = async (currentUsername: string, curren
   }
 };
 
-export const getCachedActivityAndWordsFromFirebase = async (username: string) => {
-  if (!db) return null;
+export const getCachedWordsFromFirebase = async (username: string) => {
   try {
-    const docRef = doc(db, "twitter_activity_words", username.toLowerCase());
+    const docRef = doc(db, 'words_cache', username.toLowerCase());
     const docSnap = await getDoc(docRef);
-
     if (docSnap.exists()) {
-      return docSnap.data();
-    } else {
-      return null;
+      const data = docSnap.data();
+      const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+      if (data.timestamp > oneWeekAgo) {
+        return { wordsData: data.wordsData };
+      }
     }
-  } catch (error) {
-    console.error("Error reading activity/words from Firebase cache:", error);
-    return null;
+  } catch(e) {
+    console.error("Cache read error:", e);
   }
+  return null;
 };
 
-export const saveActivityAndWordsToFirebaseCache = async (username: string, activityData: any[], wordsData: any[]) => {
-  if (!db) return;
+export const saveWordsToFirebaseCache = async (username: string, wordsData: any[]) => {
   try {
-    const docRef = doc(db, "twitter_activity_words", username.toLowerCase());
-    await setDoc(docRef, { 
-      activityData,
+    const docRef = doc(db, 'words_cache', username.toLowerCase());
+    await setDoc(docRef, {
       wordsData,
-      cachedAt: new Date().toISOString() 
-    }, { merge: true });
-  } catch (error) {
-    console.error("Error writing activity/words to Firebase cache:", error);
+      timestamp: Date.now()
+    });
+  } catch(e) {
+    console.error("Cache write error:", e);
   }
 };
-

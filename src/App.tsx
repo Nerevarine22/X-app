@@ -1,11 +1,10 @@
 import React, { useState, useRef } from 'react';
 import { Search, Loader2, Play, Bookmark, Download, Settings, Clock, CheckCircle2, Bell } from 'lucide-react';
 import { toPng } from 'html-to-image';
-import { getCachedFollowingsFromFirebase, saveFollowingsToFirebaseCache, findSimilarUsersInFirebase, getCachedTweetFromFirebase, saveTweetToFirebaseCache, getCachedMentionsFromFirebase, saveMentionsToFirebaseCache, getCachedActivityAndWordsFromFirebase, saveActivityAndWordsToFirebaseCache } from './firebase';
+import { getCachedFollowingsFromFirebase, saveFollowingsToFirebaseCache, findSimilarUsersInFirebase, getCachedTweetFromFirebase, saveTweetToFirebaseCache, getCachedMentionsFromFirebase, saveMentionsToFirebaseCache, getCachedWordsFromFirebase, saveWordsToFirebaseCache } from './firebase';
 import type { SimilarUser, MentionUser } from './firebase';
 import { removeStopwords } from 'stopword';
 import { TagCloud } from 'react-tagcloud';
-import { ActivityCalendar } from 'react-activity-calendar';
 
 interface TwitterUser {
   userId: string;
@@ -44,16 +43,15 @@ const App: React.FC = () => {
   const [popularTweet, setPopularTweet] = useState<QueryState<Tweet>>({ status: 'idle', data: null });
   const [mentions, setMentions] = useState<QueryState<MentionUser[]>>({ status: 'idle', data: null });
   const [sharedFollows, setSharedFollows] = useState<QueryState<SimilarUser[]>>({ status: 'idle', data: null });
-  const [activity, setActivity] = useState<QueryState<{ date: string; count: number; level: number }[]>>({ status: 'idle', data: null });
   const [words, setWords] = useState<QueryState<{ value: string; count: number }[]>>({ status: 'idle', data: null });
 
   // Toggles for card
-  const [toggles, setToggles] = useState({ followings: true, firstTweet: false, popularTweet: false, mentions: false, sharedFollows: false, activity: false, words: false });
+  const [toggles, setToggles] = useState({ followings: true, firstTweet: false, popularTweet: false, mentions: false, sharedFollows: false, words: false });
   const [showNotification, setShowNotification] = useState(false);
 
   // Modal and Card Options
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [cardOptions, setCardOptions] = useState({ followings: true, firstTweet: false, popularTweet: false, mentions: false, sharedFollows: false, activity: false, words: false });
+  const [cardOptions, setCardOptions] = useState({ followings: true, firstTweet: false, popularTweet: false, mentions: false, sharedFollows: false, words: false });
   const [hasDownloaded, setHasDownloaded] = useState(false);
 
   const posterRef = useRef<HTMLDivElement>(null);
@@ -77,7 +75,6 @@ const App: React.FC = () => {
     setPopularTweet({ status: 'idle', data: null });
     setMentions({ status: 'idle', data: null });
     setSharedFollows({ status: 'idle', data: null });
-    setActivity({ status: 'idle', data: null });
     setWords({ status: 'idle', data: null });
     setActiveUserAvatar('');
     setHasDownloaded(false);
@@ -88,7 +85,7 @@ const App: React.FC = () => {
     if (toggles.popularTweet) runTweet(true, clean);
     if (toggles.mentions) runMentions(clean);
     if (toggles.sharedFollows) runSharedFollows(clean);
-    if (toggles.activity || toggles.words) runActivityAndWords(clean);
+    if (toggles.words) runWords(clean);
 
     // Fetch avatar just for UI
     try {
@@ -309,15 +306,15 @@ const App: React.FC = () => {
   };
 
   // 4. Fetch Activity and Words
-  const runActivityAndWords = async (usernameToFetch = activeUser) => {
+  const runWords = async (usernameToFetch = activeUser) => {
     if (!usernameToFetch) return;
-    setActivity({ status: 'loading', data: null });
+
     setWords({ status: 'loading', data: null });
     try {
       const cleanUsername = usernameToFetch;
-      const cached = await getCachedActivityAndWordsFromFirebase(cleanUsername);
+      const cached = await getCachedWordsFromFirebase(cleanUsername);
       if (cached) {
-        setActivity({ status: 'done', data: cached.activityData });
+
         setWords({ status: 'done', data: cached.wordsData });
         return;
       }
@@ -340,27 +337,6 @@ const App: React.FC = () => {
         else hasNext = false;
       }
       
-      // Activity Map
-      const dateMap = new Map<string, number>();
-      for (const t of all) {
-        if (t.createdAt) {
-          const d = new Date(t.createdAt);
-          const dateStr = d.toISOString().split('T')[0];
-          dateMap.set(dateStr, (dateMap.get(dateStr) || 0) + 1);
-        }
-      }
-      const activityData = Array.from(dateMap.entries()).map(([date, count]) => {
-        let level = 0;
-        if (count > 0) level = 1;
-        if (count > 3) level = 2;
-        if (count > 8) level = 3;
-        if (count > 15) level = 4;
-        return { date, count, level };
-      });
-      if (activityData.length === 0) {
-        activityData.push({ date: new Date().toISOString().split('T')[0], count: 0, level: 0 });
-      }
-
       // Word Cloud
       let allText = all.map(t => t.text).join(' ').toLowerCase();
       allText = allText.replace(/https?:\/\/[^\s]+/g, '').replace(/@\w+/g, '').replace(/[^\p{L}\s]/gu, ' ');
@@ -376,12 +352,12 @@ const App: React.FC = () => {
         .sort((a, b) => b.count - a.count)
         .slice(0, 50);
 
-      setActivity({ status: 'done', data: activityData });
+
       setWords({ status: 'done', data: wordsData });
       
-      await saveActivityAndWordsToFirebaseCache(cleanUsername, activityData, wordsData);
+      await saveWordsToFirebaseCache(cleanUsername, wordsData);
     } catch(e: any) {
-      setActivity({ status: 'error', data: null, error: e.message });
+
       setWords({ status: 'error', data: null, error: e.message });
     }
   };
@@ -510,22 +486,6 @@ const App: React.FC = () => {
       </div>
       )}
 
-      {cardOptions.activity && activity.status === 'done' && activity.data && (
-        <div className="tile">
-          <div className="label">Activity Map</div>
-          <div style={{ padding: '8px 0' }}>
-            <ActivityCalendar 
-              data={activity.data} 
-              theme={{ light: ['#ebedf0', '#9be9a8', '#40c463', '#30a14e', '#216e39'], dark: ['#161b22', '#0e4429', '#006d32', '#26a641', '#39d353'] }}
-              colorScheme="dark"
-              blockSize={18}
-              blockMargin={6}
-              fontSize={18}
-            />
-          </div>
-        </div>
-      )}
-
       {cardOptions.words && words.status === 'done' && words.data && words.data.length > 0 && (
         <div className="tile">
           <div className="label">Word Cloud</div>
@@ -576,7 +536,7 @@ const App: React.FC = () => {
         popularTweet: popularTweet.status,
         mentions: mentions.status,
         sharedFollows: sharedFollows.status,
-        activity: activity.status,
+
         words: words.status,
       };
 
@@ -591,7 +551,7 @@ const App: React.FC = () => {
     });
   };
 
-  const numFound = [followings.status, firstTweet.status, popularTweet.status, mentions.status, sharedFollows.status, activity.status, words.status].filter(s => s === 'done').length;
+  const numFound = [followings.status, firstTweet.status, popularTweet.status, mentions.status, sharedFollows.status, words.status].filter(s => s === 'done').length;
 
   return (
     <div className="shell">
@@ -654,46 +614,6 @@ const App: React.FC = () => {
 
         {activeUser && (
           <>
-            {toggles.activity && (
-            <div className="tweet">
-              {activeUserAvatar ? <img src={activeUserAvatar} className="av" /> : <div className="av"></div>}
-              <div className="tweet-body">
-                <div className="tweet-head">
-                  <span className="name">{activeUser}</span>
-                  <span className="badge outline">∞</span>
-                  <span className="handle">@{activeUser}</span>
-                  <span className="dot">·</span>
-                  <span className="time">{activity.status === 'done' ? 'Found' : 'Pending'}</span>
-                </div>
-                <div className="tweet-tag" style={{ color: activity.status === 'done' ? 'var(--accent)' : 'var(--muted)' }}>ACTIVITY MAP</div>
-                <div className="tweet-text" style={{ color: activity.status === 'done' ? 'var(--text)' : 'var(--muted)' }}>
-                  {activity.status === 'done' && activity.data ? (
-                    <div style={{ background: 'rgba(255,255,255,0.03)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border)', marginTop: '10px' }}>
-                      <ActivityCalendar 
-                        data={activity.data} 
-                        theme={{ light: ['#ebedf0', '#9be9a8', '#40c463', '#30a14e', '#216e39'], dark: ['#161b22', '#0e4429', '#006d32', '#26a641', '#39d353'] }}
-                        colorScheme="dark" blockSize={12} blockMargin={4} fontSize={12}
-                      />
-                    </div>
-                  ) : activity.status === 'loading' ? (
-                    <Loader2 size={16} className="animate-spin" />
-                  ) : activity.status === 'error' ? (
-                    <>Error: {activity.error}</>
-                  ) : (
-                    <>Run this query to build your activity heatmap.</>
-                  )}
-                </div>
-                <div className="tweet-actions">
-                  {activity.status === 'idle' || activity.status === 'error' ? (
-                    <div className="action" onClick={() => runActivityAndWords(activeUser)}><Play size={18} /><span>Run query</span></div>
-                  ) : (
-                    <div className="action" style={{ color: 'var(--accent)' }}><CheckCircle2 size={18} /><span>Completed</span></div>
-                  )}
-                </div>
-              </div>
-            </div>
-            )}
-
             {toggles.words && (
             <div className="tweet">
               {activeUserAvatar ? <img src={activeUserAvatar} className="av" /> : <div className="av"></div>}
@@ -721,7 +641,7 @@ const App: React.FC = () => {
                 </div>
                 <div className="tweet-actions">
                   {words.status === 'idle' || words.status === 'error' ? (
-                    <div className="action" onClick={() => runActivityAndWords(activeUser)}><Play size={18} /><span>Run query</span></div>
+                    <div className="action" onClick={() => runWords(activeUser)}><Play size={18} /><span>Run query</span></div>
                   ) : (
                     <div className="action" style={{ color: 'var(--accent)' }}><CheckCircle2 size={18} /><span>Completed</span></div>
                   )}
@@ -1009,10 +929,6 @@ const App: React.FC = () => {
             <div><div className="ql">Shared follows</div><div className="qm">{sharedFollows.status}</div></div>
             <div className={`toggle ${toggles.sharedFollows ? 'on' : ''}`}></div>
           </div>
-          <div className="qitem" onClick={() => toggle('activity')}>
-            <div><div className="ql">Activity map</div><div className="qm">{activity.status}</div></div>
-            <div className={`toggle ${toggles.activity ? 'on' : ''}`}></div>
-          </div>
           <div className="qitem" onClick={() => toggle('words')}>
             <div><div className="ql">Word cloud</div><div className="qm">{words.status}</div></div>
             <div className={`toggle ${toggles.words ? 'on' : ''}`}></div>
@@ -1057,13 +973,13 @@ const App: React.FC = () => {
                 if (k === 'popularTweet') return popularTweet.status === 'done';
                 if (k === 'mentions') return mentions.status === 'done';
                 if (k === 'sharedFollows') return sharedFollows.status === 'done';
-                if (k === 'activity') return activity.status === 'done';
+
                 if (k === 'words') return words.status === 'done';
                 return false;
               }).map((k) => (
                 <label key={k} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', cursor: 'pointer', background: 'var(--bg-3)', padding: '6px 12px', borderRadius: '100px', border: `1px solid ${cardOptions[k as keyof typeof cardOptions] ? 'var(--accent)' : 'var(--border)'}` }}>
                   <input type="checkbox" checked={cardOptions[k as keyof typeof cardOptions]} onChange={(e) => setCardOptions({...cardOptions, [k]: e.target.checked})} style={{ display: 'none' }} />
-                  {k === 'followings' ? 'Oldest Follow' : k === 'firstTweet' ? 'First Post' : k === 'popularTweet' ? '100 Likes' : k === 'mentions' ? 'Top Tagger' : k === 'sharedFollows' ? 'Shared Follows' : k === 'activity' ? 'Activity Map' : 'Word Cloud'}
+                  {k === 'followings' ? 'Oldest Follow' : k === 'firstTweet' ? 'First Post' : k === 'popularTweet' ? '100 Likes' : k === 'mentions' ? 'Top Tagger' : k === 'sharedFollows' ? 'Shared Follows' : 'Word Cloud'}
                 </label>
               ))}
             </div>
