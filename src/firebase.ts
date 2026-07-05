@@ -167,3 +167,35 @@ export const findSimilarUsersInFirebase = async (currentUsername: string, curren
     return [];
   }
 };
+
+export const getCachedActivityAndWordsFromFirebase = async (username: string) => {
+  if (!db) return null;
+  try {
+    const docRef = doc(db, "twitter_activity_words", username.toLowerCase());
+    const docSnap = await getDoc(docRef);
+
+    if (docSnap.exists()) {
+      return docSnap.data();
+    } else {
+      return null;
+    }
+  } catch (error) {
+    console.error("Error reading activity/words from Firebase cache:", error);
+    return null;
+  }
+};
+
+export const saveActivityAndWordsToFirebaseCache = async (username: string, activityData: any[], wordsData: any[]) => {
+  if (!db) return;
+  try {
+    const docRef = doc(db, "twitter_activity_words", username.toLowerCase());
+    await setDoc(docRef, { 
+      activityData,
+      wordsData,
+      cachedAt: new Date().toISOString() 
+    }, { merge: true });
+  } catch (error) {
+    console.error("Error writing activity/words to Firebase cache:", error);
+  }
+};
+
