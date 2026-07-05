@@ -502,6 +502,37 @@ const App: React.FC = () => {
         )}
       </div>
 
+      {cardOptions.activity && activity.status === 'done' && activity.data && (
+        <div className="tile">
+          <div className="label">Activity Map</div>
+          <div style={{ padding: '8px 0' }}>
+            <ActivityCalendar 
+              data={activity.data} 
+              theme={{ light: ['#ebedf0', '#9be9a8', '#40c463', '#30a14e', '#216e39'], dark: ['#161b22', '#0e4429', '#006d32', '#26a641', '#39d353'] }}
+              colorScheme="dark"
+              blockSize={12}
+              blockMargin={4}
+              fontSize={12}
+            />
+          </div>
+        </div>
+      )}
+
+      {cardOptions.words && words.status === 'done' && words.data && words.data.length > 0 && (
+        <div className="tile">
+          <div className="label">Word Cloud</div>
+          <div style={{ textAlign: 'center', padding: '12px 0' }}>
+            <TagCloud
+              minSize={16}
+              maxSize={42}
+              tags={words.data}
+              className="simple-cloud"
+              colorOptions={{ luminosity: 'light', hue: 'blue' }}
+            />
+          </div>
+        </div>
+      )}
+
       <div className="p-foot">
         <span>x-archive.app</span>
         <span>Case file @{activeUser}</span>
@@ -1018,11 +1049,13 @@ const App: React.FC = () => {
                 if (k === 'popularTweet') return popularTweet.status === 'done';
                 if (k === 'mentions') return mentions.status === 'done';
                 if (k === 'sharedFollows') return sharedFollows.status === 'done';
+                if (k === 'activity') return activity.status === 'done';
+                if (k === 'words') return words.status === 'done';
                 return false;
               }).map((k) => (
                 <label key={k} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', cursor: 'pointer', background: 'var(--bg-3)', padding: '6px 12px', borderRadius: '100px', border: `1px solid ${cardOptions[k as keyof typeof cardOptions] ? 'var(--accent)' : 'var(--border)'}` }}>
                   <input type="checkbox" checked={cardOptions[k as keyof typeof cardOptions]} onChange={(e) => setCardOptions({...cardOptions, [k]: e.target.checked})} style={{ display: 'none' }} />
-                  {k === 'followings' ? 'Oldest Follow' : k === 'firstTweet' ? 'First Post' : k === 'popularTweet' ? '100 Likes' : k === 'mentions' ? 'Top Tagger' : 'Shared Follows'}
+                  {k === 'followings' ? 'Oldest Follow' : k === 'firstTweet' ? 'First Post' : k === 'popularTweet' ? '100 Likes' : k === 'mentions' ? 'Top Tagger' : k === 'sharedFollows' ? 'Shared Follows' : k === 'activity' ? 'Activity Map' : 'Word Cloud'}
                 </label>
               ))}
             </div>
