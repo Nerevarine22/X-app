@@ -55,6 +55,7 @@ const App: React.FC = () => {
   // Modal and Card Options
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [cardOptions, setCardOptions] = useState({ followings: true, firstTweet: false, popularTweet: false, mentions: false, sharedFollows: false });
+  const [feedOrder, setFeedOrder] = useState<string[]>(['words', 'followings', 'firstTweet', 'popularTweet', 'mentions', 'sharedFollows']);
   const [hasDownloaded, setHasDownloaded] = useState(false);
 
   const posterRef = useRef<HTMLDivElement>(null);
@@ -528,6 +529,11 @@ const App: React.FC = () => {
   };
 
   const toggle = (key: keyof typeof toggles) => {
+    setFeedOrder(prevOrder => {
+      const newOrder = prevOrder.filter(k => k !== key);
+      newOrder.unshift(key);
+      return newOrder;
+    });
     setToggles(prev => {
       if (prev[key]) return { ...prev, [key]: false }; // turn off
 
@@ -615,9 +621,9 @@ const App: React.FC = () => {
         </form>
 
         {activeUser && (
-          <>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
             {toggles.words && (
-            <div className="tweet">
+            <div className="tweet" style={{ order: feedOrder.indexOf('words') }}>
               {activeUserAvatar ? <img crossOrigin="anonymous" referrerPolicy="no-referrer" src={activeUserAvatar} className="av" /> : <div className="av"></div>}
               <div className="tweet-body">
                 <div className="tweet-head">
@@ -663,7 +669,7 @@ const App: React.FC = () => {
             )}
             {/* Oldest Follow */}
             {toggles.followings && (
-            <div className="tweet">
+            <div className="tweet" style={{ order: feedOrder.indexOf('followings') }}>
               {activeUserAvatar ? <img src={activeUserAvatar} className="av" /> : <div className="av"></div>}
               <div className="tweet-body">
                 <div className="tweet-head">
@@ -715,7 +721,7 @@ const App: React.FC = () => {
 
             {/* First Post */}
             {toggles.firstTweet && (
-            <div className="tweet">
+            <div className="tweet" style={{ order: feedOrder.indexOf('firstTweet') }}>
               {activeUserAvatar ? <img src={activeUserAvatar} className="av" /> : <div className="av"></div>}
               <div className="tweet-body">
                 <div className="tweet-head">
@@ -763,7 +769,7 @@ const App: React.FC = () => {
 
             {/* 100 Likes */}
             {toggles.popularTweet && (
-            <div className="tweet">
+            <div className="tweet" style={{ order: feedOrder.indexOf('popularTweet') }}>
               {activeUserAvatar ? <img src={activeUserAvatar} className="av" /> : <div className="av"></div>}
               <div className="tweet-body">
                 <div className="tweet-head">
@@ -811,7 +817,7 @@ const App: React.FC = () => {
 
             {/* Mentions */}
             {toggles.mentions && (
-            <div className="tweet">
+            <div className="tweet" style={{ order: feedOrder.indexOf('mentions') }}>
               {activeUserAvatar ? <img src={activeUserAvatar} className="av" /> : <div className="av"></div>}
               <div className="tweet-body">
                 <div className="tweet-head">
@@ -862,7 +868,7 @@ const App: React.FC = () => {
 
             {/* Shared Follows */}
             {toggles.sharedFollows && (
-            <div className="tweet">
+            <div className="tweet" style={{ order: feedOrder.indexOf('sharedFollows') }}>
               {activeUserAvatar ? <img src={activeUserAvatar} className="av" /> : <div className="av"></div>}
               <div className="tweet-body">
                 <div className="tweet-head">
@@ -909,7 +915,7 @@ const App: React.FC = () => {
               </div>
             </div>
             )}
-          </>
+          </div>
         )}
       </div>
 
