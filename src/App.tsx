@@ -513,7 +513,7 @@ const App: React.FC = () => {
     if (!posterRef.current) return;
     try {
       setIsDownloading(true);
-      const dataUrl = await toPng(posterRef.current, { quality: 1, pixelRatio: 2, backgroundColor: '#1d1f23', style: { transform: 'scale(1)' } });
+      const dataUrl = await toPng(posterRef.current, { quality: 1, pixelRatio: 2, backgroundColor: '#000000', style: { transform: 'scale(1)', margin: '0' } });
       const link = document.createElement('a');
       link.download = `archive-${activeUser || 'card'}.png`;
       link.href = dataUrl;
@@ -983,8 +983,8 @@ const App: React.FC = () => {
         </div>
 
         {activeUser && (
-          <div style={{ position: 'relative', width: '100%', height: '260px', overflow: 'hidden', borderRadius: '16px', marginBottom: '16px', border: '1px solid var(--border)', background: 'var(--bg-3)', cursor: 'pointer' }} onClick={() => setIsModalOpen(true)}>
-            <div className="export-card" style={{ transform: 'scale(0.65)', transformOrigin: 'top left', width: '153%', border: 'none', background: 'transparent' }}>
+          <div style={{ position: 'relative', width: '100%', height: '260px', overflow: 'hidden', borderRadius: '16px', marginBottom: '16px', border: '1px solid var(--border)', background: 'var(--bg-3)', cursor: 'pointer', display: 'flex', justifyContent: 'center' }} onClick={() => setIsModalOpen(true)}>
+            <div className="poster" style={{ transform: 'scale(0.65)', transformOrigin: 'top center', margin: 0 }}>
               {renderCard()}
             </div>
             <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, transparent, var(--bg))', pointerEvents: 'none' }} />
@@ -1006,7 +1006,7 @@ const App: React.FC = () => {
               <button className="close-btn" onClick={() => setIsModalOpen(false)}>✕</button>
             </div>
             
-            <div className="export-card" ref={posterRef}>
+            <div className="poster" ref={posterRef} style={{ margin: '0 auto', marginBottom: '24px' }}>
               {renderCard()}
             </div>
             
