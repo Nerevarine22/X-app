@@ -462,7 +462,7 @@ const App: React.FC = () => {
               {[...followings.data].reverse().slice(0, 5).map((u, i) => (
                 u.profileImageUrlHttps 
                   ? <img key={i} crossOrigin="anonymous" referrerPolicy="no-referrer" src={u.profileImageUrlHttps} className="a" /> 
-                  : <div key={i} className="a" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '10px' }}>{u.name.charAt(0)}</div>
+                  : <div key={i} className="a" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '15px' }}>{u.name.charAt(0)}</div>
               ))}
             </div>
             <div className="sub">@{followings.data[followings.data.length - 1]?.username} {followings.data.length > 1 ? `+${followings.data.length - 1} more` : ''} · since day 1</div>
@@ -483,7 +483,7 @@ const App: React.FC = () => {
           <div className="tile">
             <div className="label">Top tagger</div>
             <div className="chip-row">
-              {mentions.data[0].user.profileImageUrlHttps ? <img crossOrigin="anonymous" referrerPolicy="no-referrer" src={mentions.data[0].user.profileImageUrlHttps} className="av" /> : <div className="av" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '12px' }}>{mentions.data[0].user.username.charAt(0)}</div>}
+              {mentions.data[0].user.profileImageUrlHttps ? <img crossOrigin="anonymous" referrerPolicy="no-referrer" src={mentions.data[0].user.profileImageUrlHttps} className="av" /> : <div className="av" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '18px' }}>{mentions.data[0].user.username.charAt(0)}</div>}
               <span className="h">@{mentions.data[0].user.username}</span>
               <span className="stat">{mentions.data[0].count} tags</span>
             </div>
@@ -494,7 +494,7 @@ const App: React.FC = () => {
           <div className="tile">
             <div className="label">Shared follow</div>
             <div className="chip-row">
-              {sharedFollows.data[0].avatar ? <img crossOrigin="anonymous" referrerPolicy="no-referrer" src={sharedFollows.data[0].avatar} className="av" /> : <div className="av" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '12px' }}>{sharedFollows.data[0].username.charAt(0)}</div>}
+              {sharedFollows.data[0].avatar ? <img crossOrigin="anonymous" referrerPolicy="no-referrer" src={sharedFollows.data[0].avatar} className="av" /> : <div className="av" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '18px' }}>{sharedFollows.data[0].username.charAt(0)}</div>}
               <span className="h">@{sharedFollows.data[0].username}</span>
               <span className="stat">{sharedFollows.data[0].commonCount}</span>
             </div>
@@ -510,9 +510,9 @@ const App: React.FC = () => {
               data={activity.data} 
               theme={{ light: ['#ebedf0', '#9be9a8', '#40c463', '#30a14e', '#216e39'], dark: ['#161b22', '#0e4429', '#006d32', '#26a641', '#39d353'] }}
               colorScheme="dark"
-              blockSize={12}
-              blockMargin={4}
-              fontSize={12}
+              blockSize={18}
+              blockMargin={6}
+              fontSize={18}
             />
           </div>
         </div>
@@ -523,8 +523,8 @@ const App: React.FC = () => {
           <div className="label">Word Cloud</div>
           <div style={{ textAlign: 'center', padding: '12px 0' }}>
             <TagCloud
-              minSize={20}
-              maxSize={60}
+              minSize={30}
+              maxSize={90}
               tags={words.data}
               className="simple-cloud"
               colorOptions={{ luminosity: 'light', hue: 'blue' }}
