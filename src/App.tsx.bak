@@ -55,7 +55,6 @@ const App: React.FC = () => {
   // Modal and Card Options
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [cardOptions, setCardOptions] = useState({ followings: true, firstTweet: false, popularTweet: false, mentions: false, sharedFollows: false });
-  const [feedOrder, setFeedOrder] = useState<string[]>(['words', 'followings', 'firstTweet', 'popularTweet', 'mentions', 'sharedFollows']);
   const [hasDownloaded, setHasDownloaded] = useState(false);
 
   const posterRef = useRef<HTMLDivElement>(null);
@@ -408,124 +407,95 @@ const App: React.FC = () => {
     if(sharedFollows.status !== 'done') runSharedFollows(activeUser);
   };
 
-  const renderCard = () => {
-    const topFollows = followings.data ? followings.data.slice(0, 3) : [];
-    const extraFollows = followings.data ? Math.max(0, followings.data.length - 3) : 0;
+  const renderCard = () => (
+    <>
+      <div className="p-head">
+        <div className="p-brand">
+          {activeUserAvatar ? <img crossOrigin="anonymous" referrerPolicy="no-referrer" src={activeUserAvatar} className="av" /> : <div className="av"></div>}
+          <span className="name">@x-archive</span>
+        </div>
+        <span className="handle">@{activeUser}</span>
+      </div>
 
-    const hasFollows = cardOptions.followings && followings.status === 'done' && followings.data;
-    const hasFirstTweet = cardOptions.firstTweet && firstTweet.status === 'done' && firstTweet.data;
-    const hasPopularTweet = cardOptions.popularTweet && popularTweet.status === 'done' && popularTweet.data;
-    const hasMentions = cardOptions.mentions && mentions.status === 'done' && mentions.data;
-    const hasSharedFollows = cardOptions.sharedFollows && sharedFollows.status === 'done' && sharedFollows.data;
-
-    return (
-      <>
-        {/* Top context label */}
-        <div className="card-top-label">Your X Origin Story</div>
-
-        {/* Header */}
-        <div className="p-head">
-          <div className="p-brand">
-            {activeUserAvatar
-              ? <img crossOrigin="anonymous" referrerPolicy="no-referrer" src={activeUserAvatar} className="av" />
-              : <div className="av"></div>}
-            <span className="name">@{activeUser}</span>
+      {cardOptions.followings && followings.status === 'done' && followings.data && (
+        <div className="tile">
+          <div className="label">Oldest follows</div>
+          <div className="follow-stack">
+            {[...followings.data].reverse().slice(0, 5).map((u, i) => (
+              <div key={i} className="follow-row">
+                {u.profileImageUrlHttps 
+                  ? <img crossOrigin="anonymous" referrerPolicy="no-referrer" src={u.profileImageUrlHttps} className="av" /> 
+                  : <div className="av" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '24px' }}>{u.name.charAt(0)}</div>}
+                <div className="follow-info">
+                  <div className="uname">@{u.username}</div>
+                  {u.description && <div className="bio">{u.description}</div>}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
+      )}
 
-        {/* HERO: First to 100 likes — головний акцент */}
-        {hasPopularTweet && popularTweet.data && (
-          <div className="card-hero">
-            <div className="card-hero-inner">
-              <div className="card-label">First to 100 likes</div>
-              <div className="card-hero-quote">
-                &ldquo;{popularTweet.data.text.replace(/https:\/\/t\.co\/\w+/g, '').trim().substring(0, 120)}{popularTweet.data.text.replace(/https:\/\/t\.co\/\w+/g, '').trim().length > 120 ? '…' : ''}&rdquo;
-              </div>
-              <div className="card-hero-bottom">
-                <div className="card-hero-likes">
-                  <svg viewBox="0 0 24 24"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.8 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>
-                  <span className="card-hero-num">{popularTweet.data.likeCount.toLocaleString()}</span>
-                  <span className="card-unit">likes</span>
-                </div>
-                <span className="card-date">{new Date(popularTweet.data.createdAt).toLocaleDateString('uk-UA')}</span>
-              </div>
-            </div>
-            {popularTweet.data.media && popularTweet.data.media[0] ? (
-              <img crossOrigin="anonymous" referrerPolicy="no-referrer"
-                src={popularTweet.data.media[0].previewUrl || popularTweet.data.media[0].url}
-                className="card-hero-thumb" />
-            ) : null}
-          </div>
-        )}
-
-        {/* Row: Oldest follows + First post */}
-        {(hasFollows || hasFirstTweet) && (
-          <div className="card-row">
-            {hasFollows && followings.data && (
-              <div className="tile card-follows-tile">
-                <div className="card-label">Oldest follows</div>
-                <div className="follows-compact-list">
-                  {topFollows.map((u) => (
-                    <div key={u.userId} className="follows-compact-item">
-                      {u.profileImageUrlHttps
-                        ? <img crossOrigin="anonymous" referrerPolicy="no-referrer" src={u.profileImageUrlHttps} className="fav-sm" />
-                        : <div className="fav-sm">{u.name.charAt(0)}</div>}
-                      <span className="fav-handle">@{u.username}</span>
-                    </div>
-                  ))}
-                </div>
-                {extraFollows > 0 && <div className="follows-more">+{extraFollows} more</div>}
-              </div>
-            )}
-            {hasFirstTweet && firstTweet.data && (
-              <div className="tile card-firstpost-tile">
-                <div className="card-label">First post</div>
-                <div className="firstpost-quote">
-                  &ldquo;{firstTweet.data.text.replace(/https:\/\/t\.co\/\w+/g, '').trim().substring(0, 90)}{firstTweet.data.text.replace(/https:\/\/t\.co\/\w+/g, '').trim().length > 90 ? '…' : ''}&rdquo;
-                </div>
-                <div className="firstpost-date">{new Date(firstTweet.data.createdAt).toLocaleDateString('uk-UA')}{firstTweet.data.likeCount > 0 ? ` · ${firstTweet.data.likeCount.toLocaleString()} likes` : ''}</div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Top tagger — 1 акаунт у картці */}
-        {hasMentions && mentions.data && (
-          <div className="tile card-compact-tile">
-            <div className="card-label">Top tagger</div>
-            <div className="compact-row">
-              {mentions.data[0].user.profileImageUrlHttps
-                ? <img crossOrigin="anonymous" referrerPolicy="no-referrer" src={mentions.data[0].user.profileImageUrlHttps} className="compact-av" />
-                : <div className="compact-av">{mentions.data[0].user.username.charAt(0)}</div>}
-              <span className="compact-handle">@{mentions.data[0].user.username}</span>
-              <span className="compact-big-num">{mentions.data[0].count}</span>
-              <span className="compact-unit">tags</span>
+      {cardOptions.popularTweet && popularTweet.status === 'done' && popularTweet.data && (
+        <div className="tile featured">
+          <div className="featured-body">
+            <div className="label">First to 100 likes</div>
+            <div className="quote">"{popularTweet.data.text.length > 100 ? popularTweet.data.text.substring(0, 100) + '...' : popularTweet.data.text}"</div>
+            <div className="meta">
+              <span>{new Date(popularTweet.data.createdAt).toLocaleDateString('uk-UA')}</span>
+              <span className="likes"><svg viewBox="0 0 24 24"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.8 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>{popularTweet.data.likeCount}</span>
             </div>
           </div>
-        )}
-
-        {/* Shared follow — компактний рядок */}
-        {hasSharedFollows && sharedFollows.data && (
-          <div className="tile card-compact-tile">
-            <div className="card-label">Shared follow</div>
-            <div className="compact-row">
-              {sharedFollows.data[0].avatar
-                ? <img crossOrigin="anonymous" referrerPolicy="no-referrer" src={sharedFollows.data[0].avatar} className="compact-av" />
-                : <div className="compact-av">{sharedFollows.data[0].username.charAt(0)}</div>}
-              <span className="compact-handle">@{sharedFollows.data[0].username}</span>
-              <span className="compact-big-num">{sharedFollows.data[0].commonCount}</span>
-              <span className="compact-unit">mutuals</span>
-            </div>
-          </div>
-        )}
-
-        <div className="p-foot">
-          <span>x-archive.app</span>
-          <span>Case file @{activeUser}</span>
+          {popularTweet.data.media && popularTweet.data.media[0] ? (
+            <img crossOrigin="anonymous" referrerPolicy="no-referrer" src={popularTweet.data.media[0].previewUrl || popularTweet.data.media[0].url} className="thumb" />
+          ) : (
+            <div className="thumb"></div>
+          )}
         </div>
-      </>
-    );
-  };
+      )}
+
+      {cardOptions.firstTweet && firstTweet.status === 'done' && firstTweet.data && (
+        <div className="row2">
+          <div className="tile">
+            <div className="label">First post</div>
+            <div className="small-quote">"{firstTweet.data.text.length > 80 ? firstTweet.data.text.substring(0, 80) + '...' : firstTweet.data.text}"</div>
+            <div className="sub">{new Date(firstTweet.data.createdAt).toLocaleDateString('uk-UA')} · {firstTweet.data.likeCount} likes</div>
+          </div>
+        </div>
+      )}
+
+      {((cardOptions.mentions && mentions.status === 'done' && mentions.data) || (cardOptions.sharedFollows && sharedFollows.status === 'done' && sharedFollows.data)) && (
+      <div className="row2">
+        {cardOptions.mentions && mentions.status === 'done' && mentions.data && (
+          <div className="tile">
+            <div className="label">Top tagger</div>
+            <div className="chip-row">
+              {mentions.data[0].user.profileImageUrlHttps ? <img crossOrigin="anonymous" referrerPolicy="no-referrer" src={mentions.data[0].user.profileImageUrlHttps} className="av" /> : <div className="av" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '18px' }}>{mentions.data[0].user.username.charAt(0)}</div>}
+              <span className="h">@{mentions.data[0].user.username}</span>
+              <span className="stat">{mentions.data[0].count} tags</span>
+            </div>
+          </div>
+        )}
+        
+        {cardOptions.sharedFollows && sharedFollows.status === 'done' && sharedFollows.data && (
+          <div className="tile">
+            <div className="label">Shared follow</div>
+            <div className="chip-row">
+              {sharedFollows.data[0].avatar ? <img crossOrigin="anonymous" referrerPolicy="no-referrer" src={sharedFollows.data[0].avatar} className="av" /> : <div className="av" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '18px' }}>{sharedFollows.data[0].username.charAt(0)}</div>}
+              <span className="h">@{sharedFollows.data[0].username}</span>
+              <span className="stat">{sharedFollows.data[0].commonCount}</span>
+            </div>
+          </div>
+        )}
+      </div>
+      )}
+
+      <div className="p-foot">
+        <span>x-archive.app</span>
+        <span>Case file @{activeUser}</span>
+      </div>
+    </>
+  );
 
   const downloadCard = async () => {
     if (!posterRef.current) return;
@@ -558,11 +528,6 @@ const App: React.FC = () => {
   };
 
   const toggle = (key: keyof typeof toggles) => {
-    setFeedOrder(prevOrder => {
-      const newOrder = prevOrder.filter(k => k !== key);
-      newOrder.unshift(key);
-      return newOrder;
-    });
     setToggles(prev => {
       if (prev[key]) return { ...prev, [key]: false }; // turn off
 
@@ -650,9 +615,9 @@ const App: React.FC = () => {
         </form>
 
         {activeUser && (
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <>
             {toggles.words && (
-            <div className="tweet" style={{ order: feedOrder.indexOf('words') }}>
+            <div className="tweet">
               {activeUserAvatar ? <img crossOrigin="anonymous" referrerPolicy="no-referrer" src={activeUserAvatar} className="av" /> : <div className="av"></div>}
               <div className="tweet-body">
                 <div className="tweet-head">
@@ -698,7 +663,7 @@ const App: React.FC = () => {
             )}
             {/* Oldest Follow */}
             {toggles.followings && (
-            <div className="tweet" style={{ order: feedOrder.indexOf('followings') }}>
+            <div className="tweet">
               {activeUserAvatar ? <img src={activeUserAvatar} className="av" /> : <div className="av"></div>}
               <div className="tweet-body">
                 <div className="tweet-head">
@@ -750,7 +715,7 @@ const App: React.FC = () => {
 
             {/* First Post */}
             {toggles.firstTweet && (
-            <div className="tweet" style={{ order: feedOrder.indexOf('firstTweet') }}>
+            <div className="tweet">
               {activeUserAvatar ? <img src={activeUserAvatar} className="av" /> : <div className="av"></div>}
               <div className="tweet-body">
                 <div className="tweet-head">
@@ -798,7 +763,7 @@ const App: React.FC = () => {
 
             {/* 100 Likes */}
             {toggles.popularTweet && (
-            <div className="tweet" style={{ order: feedOrder.indexOf('popularTweet') }}>
+            <div className="tweet">
               {activeUserAvatar ? <img src={activeUserAvatar} className="av" /> : <div className="av"></div>}
               <div className="tweet-body">
                 <div className="tweet-head">
@@ -846,7 +811,7 @@ const App: React.FC = () => {
 
             {/* Mentions */}
             {toggles.mentions && (
-            <div className="tweet" style={{ order: feedOrder.indexOf('mentions') }}>
+            <div className="tweet">
               {activeUserAvatar ? <img src={activeUserAvatar} className="av" /> : <div className="av"></div>}
               <div className="tweet-body">
                 <div className="tweet-head">
@@ -860,7 +825,7 @@ const App: React.FC = () => {
                 <div className="tweet-text" style={{ color: mentions.status === 'done' ? 'var(--text)' : 'var(--muted)' }}>
                   {mentions.status === 'done' && mentions.data && mentions.data.length > 0 ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '10px' }}>
-                      {mentions.data.slice(0, 3).map((m, i) => (
+                      {mentions.data.map((m, i) => (
                         <a href={`https://x.com/${m.user.username}`} target="_blank" rel="noopener noreferrer" key={m.user.userId} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(255,255,255,0.03)', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', textDecoration: 'none', color: 'inherit' }}>
                           <div style={{ width: '20px', fontSize: '12px', color: 'var(--muted)', fontWeight: 'bold' }}>{i + 1}</div>
                           {m.user.profileImageUrlHttps ? (
@@ -897,7 +862,7 @@ const App: React.FC = () => {
 
             {/* Shared Follows */}
             {toggles.sharedFollows && (
-            <div className="tweet" style={{ order: feedOrder.indexOf('sharedFollows') }}>
+            <div className="tweet">
               {activeUserAvatar ? <img src={activeUserAvatar} className="av" /> : <div className="av"></div>}
               <div className="tweet-body">
                 <div className="tweet-head">
@@ -944,7 +909,7 @@ const App: React.FC = () => {
               </div>
             </div>
             )}
-          </div>
+          </>
         )}
       </div>
 
